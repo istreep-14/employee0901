@@ -947,11 +947,11 @@
                     const sliders = document.querySelectorAll('#skillsContainer .skill-slider');
                     sliders.forEach(function(slider) {
                         const key = slider.getAttribute('data-skill');
-                        const v = skills[key] != null ? parseInt(skills[key], 10) : 0;
-                        const safe = isNaN(v) ? 0 : Math.max(0, Math.min(5, v));
+                        const v = skills[key] != null ? parseFloat(skills[key]) : 0;
+                        const safe = isNaN(v) ? 0 : Math.max(0, Math.min(5, Math.round(v * 10) / 10));
                         slider.value = safe;
                         const valEl = slider.parentElement.querySelector('.skill-value');
-                        if (valEl) valEl.textContent = safe;
+                        if (valEl) valEl.textContent = parseFloat(safe).toFixed(1);
                     });
                 })
                 .withFailureHandler(function(err) {
@@ -1085,7 +1085,7 @@
                 const skills = {};
                 document.querySelectorAll('#skillsContainer .skill-slider').forEach(function(slider) {
                     const key = slider.getAttribute('data-skill');
-                    skills[key] = parseInt(slider.value, 10) || 0;
+                    skills[key] = parseFloat(slider.value) || 0;
                 });
                 // Save employees first, then skills
                 filterEmployees();
@@ -1368,6 +1368,8 @@
             const createdDate = employee.createdDate ? new Date(employee.createdDate).toLocaleDateString() : '';
             const lastModified = employee.lastModified ? new Date(employee.lastModified).toLocaleDateString() : '';
 
+            // Placeholder for skills; fetched async then injected
+            const skillsSectionId = 'skillsPreview_' + (employee.empId || 'emp');
             card.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     ${employee.photoUrl ? `<div style="display: flex; justify-content: center;">
@@ -1391,10 +1393,44 @@
                     ${positionsHtml ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Positions:</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${positionsHtml}</div>` : ''}
                     ${employee.status ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Status:</span><span>${renderStatusBadge(employee.status)}</span></div>` : ''}
                     ${employee.note ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Notes:</span><span>${employee.note}</span></div>` : ''}
+                    <div id="${skillsSectionId}" style="border-top:1px solid #e9ecef; padding-top:10px;">
+                        <div style="color:#6c757d; font-weight:600; margin-bottom:6px;">Skills</div>
+                        <div style="color:#6c757d; font-size:12px;">Loading...</div>
+                    </div>
                     ${createdDate ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Created:</span><span>${createdDate}</span></div>` : ''}
                     ${lastModified ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Modified:</span><span>${lastModified}</span></div>` : ''}
                 </div>
             `;
+
+            // Fetch and render skills with star ratings and weighted average
+            google.script.run.withSuccessHandler(function(res){
+                const wrap = document.getElementById(skillsSectionId);
+                if (!wrap) return;
+                const skills = (res && res.success && res.skills) ? res.skills : {};
+                const overall = (res && res.overall) ? parseFloat(res.overall) : 0;
+                const weights = (res && res.weights) || {};
+                const cats = Object.keys(skills);
+                if (cats.length === 0) { wrap.innerHTML = '<div style="color:#6c757d">No skills set</div>'; return; }
+                function renderStars(val){
+                    const full = Math.floor(val);
+                    const half = (val - full) >= 0.5 ? 1 : 0;
+                    const empty = 5 - full - half;
+                    return '★'.repeat(full) + (half ? '☆' : '') + '✩'.repeat(Math.max(0, empty));
+                }
+                let html = '';
+                html += '<div style="margin-bottom:8px; font-weight:600;">Overall (weighted): ' + overall.toFixed(2) + ' ' + renderStars(Math.min(5, overall)) + '</div>';
+                cats.forEach(function(cat){
+                    const v = parseFloat(skills[cat]) || 0;
+                    const w = parseFloat(weights[cat]) || 1;
+                    html += '<div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">'
+                      + '<div style="min-width:200px;">' + cat + '</div>'
+                      + '<div>' + renderStars(v) + '</div>'
+                      + '<div style="width:40px; text-align:right; font-weight:600;">' + v.toFixed(1) + '</div>'
+                      + '<div style="color:#6c757d;">w:' + w + '</div>'
+                      + '</div>';
+                });
+                wrap.innerHTML = html;
+            }).getEmployeeSkills(employee.empId);
         }
 
         function selectRow(index) {
