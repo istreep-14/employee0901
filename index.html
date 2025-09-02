@@ -1395,42 +1395,42 @@
                     ${employee.photoUrl ? `<div style="display: flex; justify-content: center;">
                         <img src="${getDisplayPhotoUrl(employee.photoUrl)}" alt="Employee photo" style="width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #e0e0e0;" />
                     </div>` : ''}
-                    <div style="font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 15px;">
-                        ${(employee.empId || '') === meEmpId ? '👑 ' : ''}${fullName || '(No Name)'}
+                    <div style="display:flex; gap:16px; align-items:flex-start;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size: 20px; font-weight: 700; margin-bottom: 10px;">
+                                ${(employee.empId || '') === meEmpId ? '👑 ' : ''}${fullName || '(No Name)'}
+                            </div>
+                            <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
+                                <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">ID:</span>
+                                <span>${employee.empId || ''}</span>
+                            </div>
+                            <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
+                                <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Email:</span>
+                                <span>${employee.email || ''}</span>
+                            </div>
+                            <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
+                                <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Phone:</span>
+                                <span>${employee.phone || ''}</span>
+                            </div>
+                            ${positionsHtml ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style=\"color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;\">Positions:</span></div><div style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;\">${positionsHtml}</div>` : ''}
+                            ${employee.status ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style=\"color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;\">Status:</span><span>${renderStatusBadge(employee.status)}</span></div>` : ''}
+                            ${employee.note ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style=\"color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;\">Notes:</span><span>${employee.note}</span></div>` : ''}
+                            ${createdDate ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style=\"color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;\">Created:</span><span>${createdDate}</span></div>` : ''}
+                            ${lastModified ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style=\"color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;\">Modified:</span><span>${lastModified}</span></div>` : ''}
+                        </div>
+                        <div id="skillsInline" style="flex:1; min-width:0; border-left:1px solid #e9ecef; padding-left:12px;"></div>
                     </div>
-                    <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
-                        <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">ID:</span>
-                        <span>${employee.empId || ''}</span>
-                    </div>
-                    <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
-                        <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Email:</span>
-                        <span>${employee.email || ''}</span>
-                    </div>
-                    <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
-                        <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Phone:</span>
-                        <span>${employee.phone || ''}</span>
-                    </div>
-                    ${positionsHtml ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Positions:</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${positionsHtml}</div>` : ''}
-                    ${employee.status ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Status:</span><span>${renderStatusBadge(employee.status)}</span></div>` : ''}
-                    ${employee.note ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Notes:</span><span>${employee.note}</span></div>` : ''}
-                    <div id="${skillsSectionId}" style="border-top:1px solid #e9ecef; padding-top:10px;">
-                        <div style="color:#6c757d; font-weight:600; margin-bottom:6px;">Skills</div>
-                        <div style="color:#6c757d; font-size:12px;">Loading...</div>
-                    </div>
-                    ${createdDate ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Created:</span><span>${createdDate}</span></div>` : ''}
-                    ${lastModified ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Modified:</span><span>${lastModified}</span></div>` : ''}
                 </div>
             `;
 
-            // Fetch and render skills with partial stars and weighted average into skills card
+            // Render inline skills into the same card
             google.script.run.withSuccessHandler(function(res){
-                const cardEl = document.getElementById('skillsCard');
-                if (!cardEl) return;
+                const wrap = document.getElementById('skillsInline');
+                if (!wrap) return;
                 const skills = (res && res.success && res.skills) ? res.skills : {};
                 const overall = (res && res.overall) ? parseFloat(res.overall) : 0;
                 const weights = (res && res.weights) || {};
                 const cats = Object.keys(skills);
-                if (cats.length === 0) { cardEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><div>No skills set</div></div>'; return; }
                 function starBar(val){
                     const pct = Math.max(0, Math.min(100, (val / 5) * 100));
                     return '<div style="position:relative; display:inline-block; line-height:1;">'
@@ -1438,6 +1438,7 @@
                       + '<div style="position:absolute; left:0; top:0; white-space:nowrap; overflow:hidden; width:' + pct + '%; color:#f4b400; letter-spacing:2px;">★★★★★</div>'
                       + '</div>';
                 }
+                if (cats.length === 0) { wrap.innerHTML = '<div style="color:#6c757d">No skills set</div>'; return; }
                 let html = '';
                 html += '<div style="font-size:16px; font-weight:700; margin-bottom:10px;">Skills</div>';
                 html += '<div style="margin-bottom:10px; font-weight:600;">Overall (weighted): ' + overall.toFixed(2) + ' ' + starBar(Math.min(5, overall)) + '</div>';
@@ -1451,7 +1452,7 @@
                       + '<div style="color:#6c757d;">w:' + w + '</div>'
                       + '</div>';
                 });
-                cardEl.innerHTML = html;
+                wrap.innerHTML = html;
             }).getEmployeeSkills(employee.empId);
         }
 
