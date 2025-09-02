@@ -1,14 +1,14 @@
 /**
- * Bar Employee CRM - Google Apps Script Backend
- * This script handles the Google Sheets integration for the Bar Employee CRM
+ * Bar Employee CRM - Google Sheets Add-on
+ * This creates a modal popup CRM directly in Google Sheets
  * 
  * Setup Instructions:
- * 1. Open Google Apps Script (script.google.com)
- * 2. Create a new project
+ * 1. Open your Google Sheet
+ * 2. Go to Extensions → Apps Script
  * 3. Replace Code.gs content with this script
- * 4. Create a Google Sheet with "Sheet2" tab
- * 5. Deploy as web app with execute permissions for "Anyone"
- * 6. Copy the web app URL to use in your HTML file
+ * 4. Save and run the onOpen function
+ * 5. Refresh your Google Sheet
+ * 6. You'll see "Employee CRM" in the menu bar
  */
 
 // Configuration
@@ -16,8 +16,102 @@ const SHEET_NAME = 'Sheet2';
 const HEADER_ROW = 1;
 const DATA_START_ROW = 2;
 
-// Headers in order (must match your CRM structure)
-const HEADERS = ['Emp Id', 'First Name', 'Last Name', 'Phone', 'Email', 'Position', 'Note'];
+// Headers in order
+const HEADERS = ['Emp Id', 'First Name', 'Last Name', 'Phone', 'Email', 'Position', 'Status', 'Note', 'Photo URL'];
+
+// Shifts sheet configuration
+const SHIFT_SHEET_NAME = 'Shifts';
+const SHIFT_HEADER_ROW = 1;
+const SHIFT_DATA_START_ROW = 2;
+const SHIFT_HEADERS = ['Shift Id', 'Date', 'Start Time', 'End Time', 'Tips'];
+
+/**
+ * Runs when the spreadsheet is opened - adds the CRM menu
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Employee CRM')
+    .addItem('Open CRM Manager', 'openCRMDialog')
+    .addSeparator()
+    .addItem('Initialize Sheet2', 'initializeSheet')
+    .addItem('Initialize Shifts Sheet', 'initializeShiftsSheet')
+    .addToUi();
+}
+
+/**
+ * Opens the CRM modal dialog
+ */
+function openCRMDialog() {
+  const html = HtmlService.createTemplateFromFile('CRMDialog');
+  const htmlOutput = html.evaluate()
+    .setWidth(1200)
+    .setHeight(700)
+    .setTitle('Bar Employee CRM Manager');
+  
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Bar Employee CRM Manager');
+}
+
+/**
+ * Include external files (for CSS/JS in HTML template)
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * Persist positions list in script properties
+ */
+function getPositionsList() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const raw = props.getProperty('CRM_POSITIONS_LIST') || '';
+    const positions = raw ? JSON.parse(raw) : [];
+    return { success: true, positions };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function savePositionsList(list) {
+  try {
+    const normalized = (list || []).map(function(s){ return String(s || '').trim(); }).filter(function(s){ return s.length > 0; });
+    PropertiesService.getScriptProperties().setProperty('CRM_POSITIONS_LIST', JSON.stringify(normalized));
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Persist and retrieve the "Me" employee id
+ */
+function getMeEmployeeId() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const id = props.getProperty('CRM_ME_EMP_ID') || '';
+    return { success: true, empId: id };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function setMeEmployeeId(empId) {
+  try {
+    PropertiesService.getScriptProperties().setProperty('CRM_ME_EMP_ID', String(empId || ''));
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function clearMeEmployeeId() {
+  try {
+    PropertiesService.getScriptProperties().deleteProperty('CRM_ME_EMP_ID');
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
 
 /**
  * Initialize the sheet with headers if they don't exist
@@ -39,7 +133,25 @@ function initializeSheet() {
     headerRange.setFontWeight('bold');
     headerRange.setBorder(true, true, true, true, true, true);
     
+    SpreadsheetApp.getUi().alert('Success', 'Sheet2 has been initialized with employee headers!', SpreadsheetApp.getUi().ButtonSet.OK);
     Logger.log('Sheet initialized with headers');
+  } else {
+    // NOTE: HEADERS now includes a 'Status' column; initializeSheet will write updated headers if not present.
+    // If headers already exist, we need to adjust the index of the 'Status' column
+    // to match the new HEADERS array.
+    const statusIndex = HEADERS.indexOf('Status');
+    const existingStatusIndex = existingHeaders.indexOf('Status');
+    
+    if (existingStatusIndex !== -1 && statusIndex !== existingStatusIndex) {
+      // If the 'Status' column is at a different index, move it to the correct position
+      const newHeaders = [...HEADERS];
+      const statusHeader = newHeaders.splice(statusIndex, 1)[0];
+      newHeaders.splice(existingStatusIndex, 0, statusHeader);
+      
+      sheet.getRange(HEADER_ROW, 1, 1, newHeaders.length).setValues([newHeaders]);
+      Logger.log(`Adjusted Status column position from ${existingStatusIndex} to ${statusIndex}`);
+    }
+    SpreadsheetApp.getUi().alert('Info', 'Sheet2 already has headers initialized.', SpreadsheetApp.getUi().ButtonSet.OK);
   }
   
   return sheet;
@@ -61,71 +173,11 @@ function getSheet() {
 }
 
 /**
- * Handle HTTP requests (GET and POST)
- */
-function doPost(e) {
-  try {
-    const requestData = JSON.parse(e.postData.contents);
-    const action = requestData.action;
-    
-    Logger.log(`Received ${action} request`);
-    
-    switch (action) {
-      case 'getAllEmployees':
-        return createResponse(getAllEmployees());
-      
-      case 'saveAllEmployees':
-        return createResponse(saveAllEmployees(requestData.employees));
-      
-      case 'addEmployee':
-        return createResponse(addEmployee(requestData.employee));
-      
-      case 'updateEmployee':
-        return createResponse(updateEmployee(requestData.employee, requestData.originalEmpId));
-      
-      case 'deleteEmployee':
-        return createResponse(deleteEmployee(requestData.empId));
-      
-      case 'initializeSheet':
-        initializeSheet();
-        return createResponse({ success: true, message: 'Sheet initialized' });
-      
-      default:
-        return createResponse({ success: false, error: 'Unknown action' });
-    }
-  } catch (error) {
-    Logger.log('Error in doPost: ' + error.toString());
-    return createResponse({ success: false, error: error.toString() });
-  }
-}
-
-/**
- * Handle GET requests (for testing)
- */
-function doGet(e) {
-  const action = e.parameter.action;
-  
-  if (action === 'test') {
-    return createResponse({ 
-      success: true, 
-      message: 'Bar Employee CRM API is working!',
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  if (action === 'getAllEmployees') {
-    return createResponse(getAllEmployees());
-  }
-  
-  return createResponse({ success: false, error: 'Invalid GET request' });
-}
-
-/**
  * Get all employees from the sheet
  */
 function getAllEmployees() {
   try {
-    const sheet = initializeSheet();
+    const sheet = getSheet();
     const lastRow = sheet.getLastRow();
     
     if (lastRow < DATA_START_ROW) {
@@ -144,7 +196,9 @@ function getAllEmployees() {
         phone: row[3] || '',
         email: row[4] || '',
         position: row[5] || '',
-        note: row[6] || ''
+        status: row[6] || '',
+        note: row[7] || '',
+        photoUrl: row[8] || ''
       }));
     
     Logger.log(`Retrieved ${employees.length} employees`);
@@ -161,7 +215,14 @@ function getAllEmployees() {
  */
 function saveAllEmployees(employees) {
   try {
-    const sheet = initializeSheet();
+    const sheet = getSheet();
+    
+    // Ensure headers are present and up-to-date
+    sheet.getRange(HEADER_ROW, 1, 1, HEADERS.length).setValues([HEADERS]);
+    const headerRange = sheet.getRange(HEADER_ROW, 1, 1, HEADERS.length);
+    headerRange.setBackground('#f8f9fa');
+    headerRange.setFontWeight('bold');
+    headerRange.setBorder(true, true, true, true, true, true);
     
     // Clear existing data (keep headers)
     const lastRow = sheet.getLastRow();
@@ -178,7 +239,9 @@ function saveAllEmployees(employees) {
         emp.phone || '',
         emp.email || '',
         emp.position || '',
-        emp.note || ''
+        emp.status || '',
+        emp.note || '',
+        emp.photoUrl || ''
       ]);
       
       // Write data to sheet
@@ -201,7 +264,7 @@ function saveAllEmployees(employees) {
  */
 function addEmployee(employee) {
   try {
-    const sheet = initializeSheet();
+    const sheet = getSheet();
     
     // Check for duplicate Emp ID
     const existingData = getAllEmployees();
@@ -220,7 +283,9 @@ function addEmployee(employee) {
       employee.phone || '',
       employee.email || '',
       employee.position || '',
-      employee.note || ''
+      employee.status || '',
+      employee.note || '',
+      employee.photoUrl || ''
     ];
     
     sheet.appendRow(newRow);
@@ -239,7 +304,7 @@ function addEmployee(employee) {
  */
 function updateEmployee(employee, originalEmpId) {
   try {
-    const sheet = initializeSheet();
+    const sheet = getSheet();
     const lastRow = sheet.getLastRow();
     
     if (lastRow < DATA_START_ROW) {
@@ -247,7 +312,7 @@ function updateEmployee(employee, originalEmpId) {
     }
     
     // Find the employee row
-    const dataRange = sheet.getRange(DATA_START_ROW, 1, lastRow - HEADER_ROW, 1); // Just Emp ID column
+    const dataRange = sheet.getRange(DATA_START_ROW, 1, lastRow - HEADER_ROW, 1);
     const empIds = dataRange.getValues().flat();
     const rowIndex = empIds.findIndex(id => id === originalEmpId);
     
@@ -272,7 +337,9 @@ function updateEmployee(employee, originalEmpId) {
       employee.phone || '',
       employee.email || '',
       employee.position || '',
-      employee.note || ''
+      employee.status || '',
+      employee.note || '',
+      employee.photoUrl || ''
     ];
     
     sheet.getRange(targetRow, 1, 1, HEADERS.length).setValues([updatedRow]);
@@ -291,7 +358,7 @@ function updateEmployee(employee, originalEmpId) {
  */
 function deleteEmployee(empId) {
   try {
-    const sheet = initializeSheet();
+    const sheet = getSheet();
     const lastRow = sheet.getLastRow();
     
     if (lastRow < DATA_START_ROW) {
@@ -321,103 +388,152 @@ function deleteEmployee(empId) {
 }
 
 /**
- * Create a standardized response
+ * Upload a photo to Google Drive and return an embeddable URL
  */
-function createResponse(data) {
-  const response = ContentService.createTextOutput(JSON.stringify(data));
-  response.setMimeType(ContentService.MimeType.JSON);
-  
-  // Add CORS headers to allow cross-origin requests
-  return response;
+function uploadEmployeePhoto(dataUrl, fileName, empId) {
+  try {
+    if (!dataUrl) {
+      return { success: false, error: 'Missing dataUrl' };
+    }
+    const matches = dataUrl.match(/^data:(.+);base64,(.*)$/);
+    if (!matches) {
+      return { success: false, error: 'Invalid data URL' };
+    }
+    const contentType = matches[1];
+    const base64Data = matches[2];
+    const bytes = Utilities.base64Decode(base64Data);
+    const tz = Session.getScriptTimeZone() || 'Etc/GMT';
+    const timestamp = Utilities.formatDate(new Date(), tz, 'yyyyMMdd_HHmmss');
+    const safeEmpId = (empId || 'employee').toString().replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const baseName = `${safeEmpId}_${timestamp}`;
+    const finalName = fileName ? `${baseName}_${fileName}` : `${baseName}.png`;
+    const blob = Utilities.newBlob(bytes, contentType, finalName);
+
+    const folderName = 'Employee CRM Photos';
+    let folderIter = DriveApp.getFoldersByName(folderName);
+    let folder = folderIter.hasNext() ? folderIter.next() : DriveApp.createFolder(folderName);
+
+    const file = folder.createFile(blob).setName(finalName);
+    // Make viewable via link for embedding in <img>
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {
+      // In some domains, ANYONE_WITH_LINK may be restricted; ignore if fails
+    }
+    const id = file.getId();
+    const viewUrl = `https://drive.google.com/uc?export=view&id=${id}`;
+    return { success: true, url: viewUrl, id: id };
+  } catch (error) {
+    Logger.log('Error in uploadEmployeePhoto: ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
 }
 
-/**
- * Test function - run this to test your setup
- */
-function testSetup() {
-  console.log('Testing Bar Employee CRM setup...');
-  
-  // Initialize sheet
-  initializeSheet();
-  console.log('✓ Sheet initialized');
-  
-  // Test adding an employee
-  const testEmployee = {
-    empId: 'TEST001',
-    firstName: 'John',
-    lastName: 'Doe',
-    phone: '555-0123',
-    email: 'john.doe@example.com',
-    position: 'Bartender, Server',
-    note: 'Test employee'
-  };
-  
-  const addResult = addEmployee(testEmployee);
-  console.log('Add result:', addResult);
-  
-  // Test getting all employees
-  const getResult = getAllEmployees();
-  console.log('Get result:', getResult);
-  
-  // Clean up test data
-  if (getResult.success && getResult.employees.length > 0) {
-    const deleteResult = deleteEmployee('TEST001');
-    console.log('Delete result:', deleteResult);
+// Shifts management
+function getShiftSheet() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(SHIFT_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(SHIFT_SHEET_NAME);
+    Logger.log(`Created new sheet: ${SHIFT_SHEET_NAME}`);
   }
-  
-  console.log('✓ Test completed successfully!');
+  return sheet;
 }
 
-/**
- * Create a simple web app interface for testing
- */
-function doGet(e) {
-  if (e.parameter.action === 'testInterface') {
-    return HtmlService.createHtmlOutput(`
-      <html>
-        <head>
-          <title>Bar Employee CRM API Test</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 40px; }
-            button { padding: 10px 20px; margin: 5px; }
-            .result { margin: 20px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
-          </style>
-        </head>
-        <body>
-          <h1>Bar Employee CRM API Test Interface</h1>
-          <p>This interface helps you test the Google Apps Script API.</p>
-          
-          <button onclick="testAPI('getAllEmployees')">Get All Employees</button>
-          <button onclick="testAPI('initializeSheet')">Initialize Sheet</button>
-          
-          <div id="result" class="result">
-            Click a button to test the API...
-          </div>
-          
-          <script>
-            function testAPI(action) {
-              const resultDiv = document.getElementById('result');
-              resultDiv.innerHTML = 'Loading...';
-              
-              fetch(window.location.href.split('?')[0], {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: action })
-              })
-              .then(response => response.json())
-              .then(data => {
-                resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-              })
-              .catch(error => {
-                resultDiv.innerHTML = 'Error: ' + error.message;
-              });
-            }
-          </script>
-        </body>
-      </html>
-    `);
+function initializeShiftsSheet() {
+  const sheet = getShiftSheet();
+  const existingHeaders = sheet.getRange(SHIFT_HEADER_ROW, 1, 1, SHIFT_HEADERS.length).getValues()[0];
+  const hasHeaders = existingHeaders.some(function(header){ return header !== ''; });
+
+  if (!hasHeaders) {
+    sheet.getRange(SHIFT_HEADER_ROW, 1, 1, SHIFT_HEADERS.length).setValues([SHIFT_HEADERS]);
+
+    const headerRange = sheet.getRange(SHIFT_HEADER_ROW, 1, 1, SHIFT_HEADERS.length);
+    headerRange.setBackground('#f8f9fa');
+    headerRange.setFontWeight('bold');
+    headerRange.setBorder(true, true, true, true, true, true);
+
+    SpreadsheetApp.getUi().alert('Success', 'Shifts sheet has been initialized with headers!', SpreadsheetApp.getUi().ButtonSet.OK);
+    Logger.log('Shifts sheet initialized with headers');
+  } else {
+    SpreadsheetApp.getUi().alert('Info', 'Shifts sheet already has headers initialized.', SpreadsheetApp.getUi().ButtonSet.OK);
   }
-  
-  // Default response for other GET requests
-  return createResponse(getAllEmployees());
+
+  return sheet;
+}
+
+function getAllShifts() {
+  try {
+    const sheet = getShiftSheet();
+    const lastRow = sheet.getLastRow();
+    if (lastRow < SHIFT_DATA_START_ROW) {
+      return { success: true, shifts: [] };
+    }
+
+    const dataRange = sheet.getRange(SHIFT_DATA_START_ROW, 1, lastRow - SHIFT_HEADER_ROW, SHIFT_HEADERS.length);
+    const values = dataRange.getValues();
+
+    const shifts = values
+      .filter(function(row){ return row[0] !== ''; })
+      .map(function(row){
+        return {
+          shiftId: row[0] || '',
+          date: row[1] || '',
+          startTime: row[2] || '',
+          endTime: row[3] || '',
+          tips: row[4] || 0
+        };
+      });
+
+    Logger.log(`Retrieved ${shifts.length} shifts`);
+    return { success: true, shifts: shifts };
+  } catch (error) {
+    Logger.log('Error in getAllShifts: ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+function addShift(shift) {
+  try {
+    const sheet = getShiftSheet();
+
+    // Ensure headers exist
+    const existingHeaders = sheet.getRange(SHIFT_HEADER_ROW, 1, 1, SHIFT_HEADERS.length).getValues()[0];
+    const hasHeaders = existingHeaders.some(function(header){ return header !== ''; });
+    if (!hasHeaders) {
+      sheet.getRange(SHIFT_HEADER_ROW, 1, 1, SHIFT_HEADERS.length).setValues([SHIFT_HEADERS]);
+      const headerRange = sheet.getRange(SHIFT_HEADER_ROW, 1, 1, SHIFT_HEADERS.length);
+      headerRange.setBackground('#f8f9fa');
+      headerRange.setFontWeight('bold');
+      headerRange.setBorder(true, true, true, true, true, true);
+    }
+
+    // Check for duplicate Shift ID
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= SHIFT_DATA_START_ROW) {
+      const dataRange = sheet.getRange(SHIFT_DATA_START_ROW, 1, lastRow - SHIFT_HEADER_ROW, 1);
+      const ids = dataRange.getValues().flat();
+      const duplicate = ids.findIndex(function(id){ return id === shift.shiftId; });
+      if (duplicate !== -1) {
+        return { success: false, error: 'Shift ID already exists' };
+      }
+    }
+
+    const tipsNumber = (function(v){ var n = Number(v); return isNaN(n) ? 0 : n; })(shift.tips);
+    const newRow = [
+      shift.shiftId || '',
+      shift.date || '',
+      shift.startTime || '',
+      shift.endTime || '',
+      tipsNumber
+    ];
+
+    sheet.appendRow(newRow);
+
+    Logger.log('Added shift: ' + (shift.shiftId || ''));
+    return { success: true, message: 'Shift added successfully' };
+  } catch (error) {
+    Logger.log('Error in addShift: ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
 }
