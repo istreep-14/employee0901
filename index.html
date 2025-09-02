@@ -593,6 +593,12 @@
                             <div>Select an employee to view details</div>
                         </div>
                     </div>
+                    <div id="skillsCard" class="active-card" style="margin-top: 12px;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">⭐</div>
+                            <div>Skills will appear here</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -873,16 +879,26 @@
                         const row = document.createElement('div');
                         row.innerHTML = '<div style="display:flex; align-items:center; gap:10px;">'
                           + '<div style="min-width:220px; font-weight:600; color:#3c4043;">' + cat + '</div>'
-                          + '<input type="range" min="0" max="5" step="1" value="0" class="skill-slider" data-skill="' + cat.replace(/"/g,'&quot;') + '" style="flex:1">'
-                          + '<div class="skill-value" style="width:24px; text-align:center; color:#3c4043; font-weight:600;">0</div>'
+                          + '<input type="range" min="0" max="5" step="0.1" value="0" class="skill-slider" data-skill="' + cat.replace(/"/g,'&quot;') + '" style="flex:1">'
+                          + '<input type="number" min="0" max="5" step="0.1" value="0.0" class="skill-input" data-skill="' + cat.replace(/"/g,'&quot;') + '" style="width:70px; padding:6px 8px; border:1px solid #e0e0e0; border-radius:6px;">'
                           + '</div>';
                         container.appendChild(row);
                     });
                     // Hook change events
                     container.querySelectorAll('.skill-slider').forEach(function(slider) {
                         slider.addEventListener('input', function() {
-                            const valEl = this.parentElement.querySelector('.skill-value');
-                            if (valEl) valEl.textContent = this.value;
+                            const num = this.parentElement.querySelector('.skill-input');
+                            if (num) num.value = parseFloat(this.value).toFixed(1);
+                        });
+                    });
+                    container.querySelectorAll('.skill-input').forEach(function(input) {
+                        input.addEventListener('input', function() {
+                            let v = parseFloat(this.value);
+                            if (isNaN(v)) v = 0;
+                            v = Math.max(0, Math.min(5, v));
+                            this.value = v.toFixed(1);
+                            const slider = this.parentElement.querySelector('.skill-slider');
+                            if (slider) slider.value = v;
                         });
                     });
                 })
@@ -948,13 +964,14 @@
                 .withSuccessHandler(function(res) {
                     const skills = (res && res.success && res.skills) ? res.skills : {};
                     const sliders = document.querySelectorAll('#skillsContainer .skill-slider');
+                    const inputs = document.querySelectorAll('#skillsContainer .skill-input');
                     sliders.forEach(function(slider) {
                         const key = slider.getAttribute('data-skill');
                         const v = skills[key] != null ? parseFloat(skills[key]) : 0;
                         const safe = isNaN(v) ? 0 : Math.max(0, Math.min(5, Math.round(v * 10) / 10));
                         slider.value = safe;
-                        const valEl = slider.parentElement.querySelector('.skill-value');
-                        if (valEl) valEl.textContent = parseFloat(safe).toFixed(1);
+                        const numInput = slider.parentElement.querySelector('.skill-input');
+                        if (numInput) numInput.value = safe.toFixed(1);
                     });
                 })
                 .withFailureHandler(function(err) {
@@ -1371,7 +1388,7 @@
             const createdDate = employee.createdDate ? new Date(employee.createdDate).toLocaleDateString() : '';
             const lastModified = employee.lastModified ? new Date(employee.lastModified).toLocaleDateString() : '';
 
-            // Placeholder for skills; fetched async then injected
+            // Render skills into separate card; fetched async
             const skillsSectionId = 'skillsPreview_' + (employee.empId || 'emp');
             card.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 20px;">
@@ -1405,34 +1422,36 @@
                 </div>
             `;
 
-            // Fetch and render skills with star ratings and weighted average
+            // Fetch and render skills with partial stars and weighted average into skills card
             google.script.run.withSuccessHandler(function(res){
-                const wrap = document.getElementById(skillsSectionId);
-                if (!wrap) return;
+                const cardEl = document.getElementById('skillsCard');
+                if (!cardEl) return;
                 const skills = (res && res.success && res.skills) ? res.skills : {};
                 const overall = (res && res.overall) ? parseFloat(res.overall) : 0;
                 const weights = (res && res.weights) || {};
                 const cats = Object.keys(skills);
-                if (cats.length === 0) { wrap.innerHTML = '<div style="color:#6c757d">No skills set</div>'; return; }
-                function renderStars(val){
-                    const full = Math.floor(val);
-                    const half = (val - full) >= 0.5 ? 1 : 0;
-                    const empty = 5 - full - half;
-                    return '★'.repeat(full) + (half ? '☆' : '') + '✩'.repeat(Math.max(0, empty));
+                if (cats.length === 0) { cardEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⭐</div><div>No skills set</div></div>'; return; }
+                function starBar(val){
+                    const pct = Math.max(0, Math.min(100, (val / 5) * 100));
+                    return '<div style="position:relative; display:inline-block; line-height:1;">'
+                      + '<div style="color:#e0e0e0; letter-spacing:2px;">★★★★★</div>'
+                      + '<div style="position:absolute; left:0; top:0; white-space:nowrap; overflow:hidden; width:' + pct + '%; color:#f4b400; letter-spacing:2px;">★★★★★</div>'
+                      + '</div>';
                 }
                 let html = '';
-                html += '<div style="margin-bottom:8px; font-weight:600;">Overall (weighted): ' + overall.toFixed(2) + ' ' + renderStars(Math.min(5, overall)) + '</div>';
+                html += '<div style="font-size:16px; font-weight:700; margin-bottom:10px;">Skills</div>';
+                html += '<div style="margin-bottom:10px; font-weight:600;">Overall (weighted): ' + overall.toFixed(2) + ' ' + starBar(Math.min(5, overall)) + '</div>';
                 cats.forEach(function(cat){
                     const v = parseFloat(skills[cat]) || 0;
                     const w = parseFloat(weights[cat]) || 1;
                     html += '<div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">'
                       + '<div style="min-width:200px;">' + cat + '</div>'
-                      + '<div>' + renderStars(v) + '</div>'
+                      + '<div>' + starBar(v) + '</div>'
                       + '<div style="width:40px; text-align:right; font-weight:600;">' + v.toFixed(1) + '</div>'
                       + '<div style="color:#6c757d;">w:' + w + '</div>'
                       + '</div>';
                 });
-                wrap.innerHTML = html;
+                cardEl.innerHTML = html;
             }).getEmployeeSkills(employee.empId);
         }
 
