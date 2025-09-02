@@ -13,6 +13,7 @@
 const CRM_SHEET_NAME = 'Bar_Employee_CRM_Data';
 const POSITIONS_SHEET_NAME = 'Position_Config';
 const PHOTOS_FOLDER_NAME = 'Bar_Employee_Photos';
+const SKILLS_SHEET_NAME = 'Bartender_Skills';
 const HEADER_ROW = 1;
 const DATA_START_ROW = 2;
 
@@ -22,6 +23,140 @@ const HEADERS = [
   'Position', 'Status', 'Note', 'Photo URL', 'Created Date', 'Last Modified',
   'Is Manager', 'Is Assistant Manager', 'Is Me'
 ];
+
+// Default bartender skill categories
+const DEFAULT_SKILL_CATEGORIES = [
+  'Mixology & Classics',
+  'Speed & Throughput',
+  'Spirits Knowledge',
+  'Wine Knowledge',
+  'Beer Knowledge',
+  'Customer Service',
+  'Cleanliness & Organization',
+  'POS Proficiency'
+];
+
+/**
+ * Get or create bartender skills sheet with headers
+ */
+function getSkillsSheet() {
+  const props = PropertiesService.getScriptProperties();
+  const sheetId = props.getProperty('CRM_SHEET_ID');
+  if (!sheetId) {
+    throw new Error('CRM sheet not initialized');
+  }
+  const ss = SpreadsheetApp.openById(sheetId);
+  let sheet = ss.getSheetByName(SKILLS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SKILLS_SHEET_NAME);
+  }
+  // Ensure headers exist: Emp Id + categories
+  const expectedHeaders = ['Emp Id'].concat(DEFAULT_SKILL_CATEGORIES);
+  const lastCol = Math.max(sheet.getLastColumn(), expectedHeaders.length);
+  let currentHeaders = [];
+  if (sheet.getLastRow() >= 1 && lastCol > 0) {
+    currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  }
+  let headersChanged = false;
+  expectedHeaders.forEach((h, i) => {
+    if (currentHeaders[i] !== h) {
+      headersChanged = true;
+    }
+  });
+  if (headersChanged || sheet.getLastRow() < 1) {
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setBackground('#4285f4').setFontColor('#ffffff').setFontWeight('bold');
+  }
+  return sheet;
+}
+
+/**
+ * Return the list of skill categories (from header row after Emp Id)
+ */
+function getSkillCategories() {
+  try {
+    const sheet = getSkillsSheet();
+    const lastCol = sheet.getLastColumn();
+    if (lastCol <= 1) {
+      return { success: true, categories: DEFAULT_SKILL_CATEGORIES };
+    }
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const categories = headers.slice(1).filter(Boolean);
+    return { success: true, categories: categories.length > 0 ? categories : DEFAULT_SKILL_CATEGORIES };
+  } catch (e) {
+    return { success: true, categories: DEFAULT_SKILL_CATEGORIES, error: e.toString() };
+  }
+}
+
+/**
+ * Get skills for a specific employee (object of category -> integer 0-5)
+ */
+function getEmployeeSkills(empId) {
+  try {
+    if (!empId) return { success: false, error: 'empId required' };
+    const sheet = getSkillsSheet();
+    const catsResult = getSkillCategories();
+    const categories = catsResult.categories || DEFAULT_SKILL_CATEGORIES;
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      return { success: true, skills: {} };
+    }
+    const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if ((data[i][0] || '').toString().trim() === empId) {
+        const skills = {};
+        for (let c = 0; c < categories.length; c++) {
+          const v = data[i][c + 1];
+          skills[categories[c]] = typeof v === 'number' ? Math.max(0, Math.min(5, Math.round(v))) : (parseInt(v, 10) || 0);
+        }
+        return { success: true, skills };
+      }
+    }
+    return { success: true, skills: {} };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Save skills for a specific employee
+ */
+function saveEmployeeSkills(empId, skills) {
+  try {
+    if (!empId) return { success: false, error: 'empId required' };
+    const sheet = getSkillsSheet();
+    const catsResult = getSkillCategories();
+    const categories = catsResult.categories || DEFAULT_SKILL_CATEGORIES;
+    // Find existing row
+    const lastRow = sheet.getLastRow();
+    let targetRow = -1;
+    if (lastRow >= 2) {
+      const range = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < range.length; i++) {
+        if ((range[i][0] || '').toString().trim() === empId) {
+          targetRow = i + 2;
+          break;
+        }
+      }
+    }
+    if (targetRow === -1) {
+      targetRow = lastRow >= 2 ? lastRow + 1 : 2;
+      sheet.getRange(targetRow, 1).setValue(empId);
+    }
+    // Build row values: Emp Id + category values 0-5
+    const rowValues = [empId];
+    for (let i = 0; i < categories.length; i++) {
+      const key = categories[i];
+      const val = (skills && skills[key] != null) ? parseInt(skills[key], 10) : 0;
+      rowValues.push(Math.max(0, Math.min(5, isNaN(val) ? 0 : val)));
+    }
+    sheet.getRange(targetRow, 1, 1, rowValues.length).setValues([rowValues]);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
 
 // Default positions with icons (matching HTML)
 const DEFAULT_POSITIONS = [
