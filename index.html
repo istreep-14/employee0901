@@ -608,7 +608,7 @@
             <div class="form-content">
                 <form id="employeeForm">
                     <div class="form-group">
-                        <label class="form-label">Employee ID <span style="color: #ea4335;">*</span></label>
+                        <label class="form-label">ID <span style="color: #ea4335;">*</span></label>
                         <input type="text" id="empId" class="form-control" required>
                     </div>
                     
@@ -684,10 +684,17 @@
                         <label class="form-label">Roles</label>
                         <div class="role-flags">
                             <label><input type="checkbox" id="flag-isMe"> 👑 This is me</label>
-                            <label><input type="checkbox" id="flag-asstManager"> 🎖️ Assistant Manager</label>
                         </div>
                     </div>
                     
+                    <div class="form-group">
+                        <label class="form-label">Photo</label>
+                        <input type="file" id="photoFile" class="form-control" accept="image/*">
+                        <div id="photoPreviewContainer" style="margin-top: 10px; display: none;">
+                            <img id="photoPreview" src="" alt="Photo preview" style="max-width: 120px; border-radius: 8px; border: 1px solid #e0e0e0;" />
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Status</label>
                         <select id="status" class="form-control">
@@ -746,6 +753,26 @@
             
             // Load "me" employee ID
             loadMeEmployeeId();
+
+            // Photo preview handler
+            const fileInput = document.getElementById('photoFile');
+            if (fileInput) {
+                fileInput.addEventListener('change', function() {
+                    const file = this.files && this.files[0];
+                    const preview = document.getElementById('photoPreview');
+                    const previewContainer = document.getElementById('photoPreviewContainer');
+                    if (file && preview && previewContainer) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            preview.src = e.target.result;
+                            previewContainer.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    } else if (previewContainer) {
+                        previewContainer.style.display = 'none';
+                    }
+                });
+            }
         };
 
         // Load system information and test connection
@@ -857,13 +884,19 @@
             });
 
             // Set role flags
-            const isAsst = empPositions.includes('Assistant Manager');
             const isMeFlag = (employee.empId || '') === meEmpId;
-            
             const flagMe = document.getElementById('flag-isMe');
-            const flagAsst = document.getElementById('flag-asstManager');
             if (flagMe) flagMe.checked = !!isMeFlag;
-            if (flagAsst) flagAsst.checked = !!isAsst;
+
+            // Preview photo
+            const preview = document.getElementById('photoPreview');
+            const previewContainer = document.getElementById('photoPreviewContainer');
+            if (preview && employee.photoUrl) {
+                preview.src = employee.photoUrl;
+                if (previewContainer) previewContainer.style.display = 'block';
+            } else if (previewContainer) {
+                previewContainer.style.display = 'none';
+            }
             
             openEmployeeForm('Edit Employee: ' + employee.empId);
             setTimeout(() => document.getElementById('empId').focus(), 100);
@@ -917,11 +950,7 @@
                 selectedPositions.push(checkbox.value);
             });
 
-            // Apply role flags to positions list
-            const isAsst = document.getElementById('flag-asstManager')?.checked;
-            if (isAsst && !selectedPositions.includes('Assistant Manager')) {
-                selectedPositions.push('Assistant Manager');
-            }
+            // Apply role flags to positions list (Assistant Manager flag removed; handled via Position)
             
             const now = new Date().toISOString();
             const employee = {
@@ -933,6 +962,7 @@
                 position: selectedPositions.join(', '),
                 status: document.getElementById('status').value,
                 note: document.getElementById('note').value.trim(),
+                photoUrl: employees[editingIndex]?.photoUrl || '',
                 createdDate: isEditing ? (employees[editingIndex].createdDate || now) : now,
                 lastModified: now
             };
@@ -954,9 +984,38 @@
                 clearMeEmployeeId();
             }
             
-            filterEmployees();
-            saveEmployeesToSheet();
-            closeEmployeeForm();
+            // If a new photo is selected, upload before saving
+            const fileInput = document.getElementById('photoFile');
+            const selectedFile = fileInput && fileInput.files && fileInput.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    google.script.run
+                        .withSuccessHandler(function(result) {
+                            if (result && result.success && result.url) {
+                                employee.photoUrl = result.url;
+                            } else {
+                                console.log('Photo upload failed:', result && result.error);
+                            }
+                            finalizeSave();
+                        })
+                        .withFailureHandler(function(error) {
+                            console.log('Photo upload error:', error);
+                            finalizeSave();
+                        })
+                        .uploadEmployeePhoto(dataUrl, selectedFile.name, empId);
+                };
+                reader.readAsDataURL(selectedFile);
+            } else {
+                finalizeSave();
+            }
+
+            function finalizeSave() {
+                filterEmployees();
+                saveEmployeesToSheet();
+                closeEmployeeForm();
+            }
         }
 
         // Save employees to Google Sheets
@@ -1039,9 +1098,11 @@
                 checkbox.checked = false;
             });
             const flagMe = document.getElementById('flag-isMe');
-            const flagAsst = document.getElementById('flag-asstManager');
             if (flagMe) flagMe.checked = false;
-            if (flagAsst) flagAsst.checked = false;
+            const preview = document.getElementById('photoPreview');
+            const previewContainer = document.getElementById('photoPreviewContainer');
+            if (preview) preview.src = '';
+            if (previewContainer) previewContainer.style.display = 'none';
             editingOriginalEmpId = '';
         }
 
@@ -1075,14 +1136,12 @@
             // Create header
             const headerRow = document.createElement('tr');
             const columns = [
-                'Emp ID',
+                'ID',
                 'First Name',
                 'Last Name',
                 'Phone',
-                'Email',
                 'Position',
-                'Status',
-                'Notes'
+                'Status'
             ];
             
             columns.forEach(col => {
@@ -1150,11 +1209,6 @@
                 phoneCell.textContent = employee.phone || '';
                 row.appendChild(phoneCell);
                 
-                // Email
-                const emailCell = document.createElement('td');
-                emailCell.textContent = employee.email || '';
-                row.appendChild(emailCell);
-                
                 // Position
                 const positionCell = document.createElement('td');
                 if (employee.position) {
@@ -1180,17 +1234,7 @@
                 statusCell.innerHTML = renderStatusBadge(employee.status);
                 row.appendChild(statusCell);
                 
-                // Notes
-                const noteCell = document.createElement('td');
-                noteCell.textContent = employee.note || '';
-                noteCell.style.maxWidth = '200px';
-                noteCell.style.whiteSpace = 'nowrap';
-                noteCell.style.overflow = 'hidden';
-                noteCell.style.textOverflow = 'ellipsis';
-                if (employee.note) {
-                    noteCell.title = employee.note;
-                }
-                row.appendChild(noteCell);
+                // Notes removed from table view
                 
                 table.appendChild(row);
             });

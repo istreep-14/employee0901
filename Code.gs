@@ -19,7 +19,8 @@ const DATA_START_ROW = 2;
 // Headers in order
 const HEADERS = [
   'Emp Id', 'First Name', 'Last Name', 'Phone', 'Email', 
-  'Position', 'Status', 'Note', 'Photo URL', 'Created Date', 'Last Modified'
+  'Position', 'Status', 'Note', 'Photo URL', 'Created Date', 'Last Modified',
+  'Is Manager', 'Is Assistant Manager', 'Is Me'
 ];
 
 // Default positions with icons (matching HTML)
@@ -124,8 +125,11 @@ function getCRMSheet() {
         sheet = spreadsheet.getSheetByName(CRM_SHEET_NAME);
         
         if (sheet && !validateSheetHeaders(sheet)) {
-          Logger.log('Sheet headers invalid, reinitializing...');
-          initializeSheet(sheet);
+          Logger.log('Sheet headers invalid, attempting migration...');
+          if (!tryMigrateSheet(sheet)) {
+            Logger.log('Migration not possible, reinitializing sheet...');
+            initializeSheet(sheet);
+          }
         }
       } catch (e) {
         Logger.log('Existing sheet not accessible: ' + e.toString());
@@ -245,6 +249,9 @@ function initializeSheet(sheet) {
     sheet.setColumnWidth(9, 200);  // Photo URL
     sheet.setColumnWidth(10, 120); // Created Date
     sheet.setColumnWidth(11, 120); // Last Modified
+    sheet.setColumnWidth(12, 100); // Is Manager
+    sheet.setColumnWidth(13, 150); // Is Assistant Manager
+    sheet.setColumnWidth(14, 80);  // Is Me
     
     sheet.setFrozenRows(1);
     
@@ -255,12 +262,51 @@ function initializeSheet(sheet) {
       .setHelpText('Select Active or Inactive')
       .build();
     statusRange.setDataValidation(statusRule);
+
+    // Add checkbox validations for boolean columns
+    const boolRange = sheet.getRange(DATA_START_ROW, 12, 1000, 3);
+    try { boolRange.insertCheckboxes(); } catch (e) { /* older Apps Script? ignore */ }
     
     Logger.log('Sheet initialized successfully');
     return { success: true };
   } catch (error) {
     Logger.log('Error initializing sheet: ' + error.toString());
     return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Attempt to migrate an older sheet schema to the latest headers
+ */
+function tryMigrateSheet(sheet) {
+  try {
+    const existingHeadersRow = sheet.getRange(HEADER_ROW, 1, 1, Math.max(sheet.getLastColumn(), HEADERS.length)).getValues()[0];
+    const oldHeaders = [
+      'Emp Id', 'First Name', 'Last Name', 'Phone', 'Email',
+      'Position', 'Status', 'Note', 'Photo URL', 'Created Date', 'Last Modified'
+    ];
+    const existingFirst11 = existingHeadersRow.slice(0, oldHeaders.length);
+    const isOldSchema = oldHeaders.every((h, i) => existingFirst11[i] === h);
+    if (!isOldSchema) {
+      return false;
+    }
+    // Append new headers in place
+    const newHeaderValues = [HEADERS];
+    sheet.getRange(HEADER_ROW, 1, 1, HEADERS.length).setValues(newHeaderValues);
+    // Set widths for new columns
+    sheet.setColumnWidth(12, 100);
+    sheet.setColumnWidth(13, 150);
+    sheet.setColumnWidth(14, 80);
+    // Add checkbox validations for boolean columns
+    const lastRow = sheet.getLastRow();
+    const numRows = Math.max(1000, lastRow - HEADER_ROW);
+    const boolRange = sheet.getRange(DATA_START_ROW, 12, numRows, 3);
+    try { boolRange.insertCheckboxes(); } catch (e) { /* ignore */ }
+    Logger.log('Migrated sheet headers to latest schema');
+    return true;
+  } catch (e) {
+    Logger.log('Migration failed: ' + e.toString());
+    return false;
   }
 }
 
@@ -392,7 +438,10 @@ function getAllEmployees() {
           note: row[7] ? row[7].toString().trim() : '',
           photoUrl: row[8] ? row[8].toString().trim() : '',
           createdDate: formatDateForDisplay(row[9]),
-          lastModified: formatDateForDisplay(row[10])
+          lastModified: formatDateForDisplay(row[10]),
+          isManager: !!row[11],
+          isAssistantManager: !!row[12],
+          isMe: !!row[13]
         };
         
         employees.push(employee);
@@ -474,7 +523,10 @@ function saveAllEmployees(employees) {
           note: (emp.note || '').toString().trim(),
           photoUrl: (emp.photoUrl || '').toString().trim(),
           createdDate: createdDate,
-          lastModified: lastModified
+          lastModified: lastModified,
+          isManager: !!emp.isManager,
+          isAssistantManager: !!emp.isAssistantManager,
+          isMe: !!emp.isMe
         };
         
         validEmployees.push(cleanEmployee);
@@ -536,7 +588,10 @@ function saveAllEmployees(employees) {
         emp.note,
         emp.photoUrl,
         emp.createdDate,  // This is already a Date object
-        emp.lastModified  // This is already a Date object
+        emp.lastModified, // This is already a Date object
+        emp.isManager,
+        emp.isAssistantManager,
+        emp.isMe
       ]);
       
       try {
