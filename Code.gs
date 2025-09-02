@@ -13,6 +13,8 @@
 const CRM_SHEET_NAME = 'Bar_Employee_CRM_Data';
 const POSITIONS_SHEET_NAME = 'Position_Config';
 const PHOTOS_FOLDER_NAME = 'Bar_Employee_Photos';
+const SKILLS_SHEET_NAME = 'Bartender_Skills';
+const SKILLS_CONFIG_SHEET_NAME = 'Bartender_Skill_Config';
 const HEADER_ROW = 1;
 const DATA_START_ROW = 2;
 
@@ -22,6 +24,221 @@ const HEADERS = [
   'Position', 'Status', 'Note', 'Photo URL', 'Created Date', 'Last Modified',
   'Is Manager', 'Is Assistant Manager', 'Is Me'
 ];
+
+// Default bartender skill categories
+const DEFAULT_SKILL_CONFIG = [
+  { name: 'Mixology', description: 'Classic cocktails, balance, techniques', weight: 1 },
+  { name: 'Bar Maintenance', description: 'Restock, organization, station readiness', weight: 1 },
+  { name: 'Sanitation', description: 'Cleanliness, food safety practices', weight: 1 },
+  { name: 'Payment Management', description: 'POS accuracy, tabs, settlements', weight: 1 },
+  { name: 'Alcohol Awareness', description: 'ID checks, over-service prevention', weight: 1 },
+  { name: 'Multitasking', description: 'Juggling orders, prioritization, composure', weight: 1 },
+  { name: 'Customer Service', description: 'Hospitality, communication, recovery', weight: 1 }
+];
+
+/**
+ * Get or create bartender skills sheet with headers
+ */
+function getSkillsSheet() {
+  const props = PropertiesService.getScriptProperties();
+  const sheetId = props.getProperty('CRM_SHEET_ID');
+  if (!sheetId) {
+    throw new Error('CRM sheet not initialized');
+  }
+  const ss = SpreadsheetApp.openById(sheetId);
+  let sheet = ss.getSheetByName(SKILLS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SKILLS_SHEET_NAME);
+  }
+  // Ensure headers exist: Emp Id + categories from config
+  const categories = (getSkillCategories().categories) || DEFAULT_SKILL_CONFIG.map(c => c.name);
+  const expectedHeaders = ['Emp Id'].concat(categories);
+  const lastCol = Math.max(sheet.getLastColumn(), expectedHeaders.length);
+  let currentHeaders = [];
+  if (sheet.getLastRow() >= 1 && lastCol > 0) {
+    currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  }
+  let headersChanged = false;
+  expectedHeaders.forEach((h, i) => {
+    if (currentHeaders[i] !== h) {
+      headersChanged = true;
+    }
+  });
+  if (headersChanged || sheet.getLastRow() < 1) {
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setBackground('#4285f4').setFontColor('#ffffff').setFontWeight('bold');
+  }
+  return sheet;
+}
+
+/**
+ * Ensure and return the skills config sheet (Category, Description, Weight)
+ */
+function getSkillsConfigSheet() {
+  const props = PropertiesService.getScriptProperties();
+  const sheetId = props.getProperty('CRM_SHEET_ID');
+  if (!sheetId) {
+    throw new Error('CRM sheet not initialized');
+  }
+  const ss = SpreadsheetApp.openById(sheetId);
+  let cfg = ss.getSheetByName(SKILLS_CONFIG_SHEET_NAME);
+  if (!cfg) {
+    cfg = ss.insertSheet(SKILLS_CONFIG_SHEET_NAME);
+  }
+  const headers = ['Category', 'Description', 'Weight'];
+  const lastCol = Math.max(cfg.getLastColumn(), headers.length);
+  let currentHeaders = [];
+  if (cfg.getLastRow() >= 1 && lastCol > 0) {
+    currentHeaders = cfg.getRange(1, 1, 1, lastCol).getValues()[0];
+  }
+  let needsInit = false;
+  headers.forEach((h, i) => {
+    if (currentHeaders[i] !== h) {
+      needsInit = true;
+    }
+  });
+  if (needsInit || cfg.getLastRow() < 1) {
+    cfg.getRange(1, 1, 1, headers.length).setValues([[headers[0], headers[1], headers[2]]]);
+    if (DEFAULT_SKILL_CONFIG.length > 0) {
+      const rows = DEFAULT_SKILL_CONFIG.map(c => [c.name, c.description, c.weight]);
+      cfg.getRange(2, 1, rows.length, 3).setValues(rows);
+    }
+    cfg.setFrozenRows(1);
+    cfg.getRange(1, 1, 1, headers.length).setBackground('#4285f4').setFontColor('#ffffff').setFontWeight('bold');
+  }
+  // Style weight column as number
+  const lastRow = cfg.getLastRow();
+  if (lastRow >= 2) {
+    cfg.getRange(2, 3, lastRow - 1, 1).setNumberFormat('0.00');
+  }
+  return cfg;
+}
+
+/**
+ * Return the list of skill categories (with descriptions and weights)
+ */
+function getSkillCategories() {
+  try {
+    const cfg = getSkillsConfigSheet();
+    const lastRow = cfg.getLastRow();
+    let categories = [];
+    const descriptions = {};
+    const weights = {};
+    if (lastRow >= 2) {
+      const vals = cfg.getRange(2, 1, lastRow - 1, 3).getValues();
+      vals.forEach(r => {
+        const name = (r[0] || '').toString().trim();
+        if (!name) return;
+        const desc = (r[1] || '').toString().trim();
+        const w = parseFloat(r[2]);
+        categories.push(name);
+        descriptions[name] = desc;
+        weights[name] = isNaN(w) ? 1 : w;
+      });
+    }
+    if (categories.length === 0) {
+      categories = DEFAULT_SKILL_CONFIG.map(c => c.name);
+      DEFAULT_SKILL_CONFIG.forEach(c => {
+        descriptions[c.name] = c.description;
+        weights[c.name] = c.weight;
+      });
+    }
+    // Ensure skills sheet headers are aligned
+    getSkillsSheet();
+    return { success: true, categories: categories, descriptions: descriptions, weights: weights };
+  } catch (e) {
+    const categories = DEFAULT_SKILL_CONFIG.map(c => c.name);
+    const descriptions = {};
+    const weights = {};
+    DEFAULT_SKILL_CONFIG.forEach(c => { descriptions[c.name] = c.description; weights[c.name] = c.weight; });
+    return { success: true, categories, descriptions, weights, error: e.toString() };
+  }
+}
+
+/**
+ * Get skills for a specific employee (object of category -> integer 0-5)
+ */
+function getEmployeeSkills(empId) {
+  try {
+    if (!empId) return { success: false, error: 'empId required' };
+    const sheet = getSkillsSheet();
+    const catsResult = getSkillCategories();
+    const categories = catsResult.categories || DEFAULT_SKILL_CONFIG.map(c => c.name);
+    const weights = catsResult.weights || {};
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      return { success: true, skills: {}, overall: 0 };
+    }
+    const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if ((data[i][0] || '').toString().trim() === empId) {
+        const skills = {};
+        let totalWeighted = 0;
+        let sumWeights = 0;
+        for (let c = 0; c < categories.length; c++) {
+          const v = data[i][c + 1];
+          const val = typeof v === 'number' ? v : parseFloat(v);
+          const safe = isNaN(val) ? 0 : Math.max(0, Math.min(5, val));
+          skills[categories[c]] = safe;
+          const w = parseFloat(weights[categories[c]]) || 1;
+          totalWeighted += safe * w;
+          sumWeights += w;
+        }
+        const overall = sumWeights > 0 ? totalWeighted / sumWeights : 0;
+        return { success: true, skills, overall: overall, weights: weights };
+      }
+    }
+    return { success: true, skills: {}, overall: 0 };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Save skills for a specific employee
+ */
+function saveEmployeeSkills(empId, skills) {
+  try {
+    if (!empId) return { success: false, error: 'empId required' };
+    const sheet = getSkillsSheet();
+    const catsResult = getSkillCategories();
+    const categories = catsResult.categories || DEFAULT_SKILL_CONFIG.map(c => c.name);
+    // Find existing row
+    const lastRow = sheet.getLastRow();
+    let targetRow = -1;
+    if (lastRow >= 2) {
+      const range = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < range.length; i++) {
+        if ((range[i][0] || '').toString().trim() === empId) {
+          targetRow = i + 2;
+          break;
+        }
+      }
+    }
+    if (targetRow === -1) {
+      targetRow = lastRow >= 2 ? lastRow + 1 : 2;
+      sheet.getRange(targetRow, 1).setValue(empId);
+    }
+    // Build row values: Emp Id + category values 0-5
+    const rowValues = [empId];
+    for (let i = 0; i < categories.length; i++) {
+      const key = categories[i];
+      const valRaw = (skills && skills[key] != null) ? parseFloat(skills[key]) : 0;
+      const val = Math.max(0, Math.min(5, isNaN(valRaw) ? 0 : valRaw));
+      rowValues.push(val);
+    }
+    sheet.getRange(targetRow, 1, 1, rowValues.length).setValues([rowValues]);
+    // Number format for skills columns
+    const lastCol = sheet.getLastColumn();
+    if (lastCol > 1) {
+      sheet.getRange(2, 2, Math.max(1, sheet.getLastRow() - 1), lastCol - 1).setNumberFormat('0.0');
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
 
 // Default positions with icons (matching HTML)
 const DEFAULT_POSITIONS = [

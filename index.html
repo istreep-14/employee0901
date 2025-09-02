@@ -696,6 +696,12 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="form-label">Bartender Skill Matrix</label>
+                        <div id="skillsContainer" style="display: grid; grid-template-columns: 1fr; gap: 12px;"></div>
+                        <div style="font-size: 12px; color: #6c757d; margin-top: 6px;">0 = Not trained, 5 = Expert</div>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">Status</label>
                         <select id="status" class="form-control">
                             <option value="Active">Active</option>
@@ -773,6 +779,8 @@
                     }
                 });
             }
+            // Build skills UI
+            buildSkillsUI();
         };
 
         // Load system information and test connection
@@ -847,6 +855,40 @@
                 .getAllEmployees();
         }
 
+        // Build the bartender skills sliders
+        function buildSkillsUI() {
+            const container = document.getElementById('skillsContainer');
+            if (!container) return;
+            container.innerHTML = '<div style="color:#6c757d">Loading skills...</div>';
+            google.script.run
+                .withSuccessHandler(function(res) {
+                    const categories = (res && res.success && Array.isArray(res.categories) && res.categories.length > 0)
+                        ? res.categories
+                        : ['Mixology & Classics','Speed & Throughput','Spirits Knowledge','Wine Knowledge','Beer Knowledge','Customer Service','Cleanliness & Organization','POS Proficiency'];
+                    container.innerHTML = '';
+                    categories.forEach(function(cat, idx) {
+                        const row = document.createElement('div');
+                        row.innerHTML = '<div style="display:flex; align-items:center; gap:10px;">'
+                          + '<div style="min-width:220px; font-weight:600; color:#3c4043;">' + cat + '</div>'
+                          + '<input type="range" min="0" max="5" step="1" value="0" class="skill-slider" data-skill="' + cat.replace(/"/g,'&quot;') + '" style="flex:1">'
+                          + '<div class="skill-value" style="width:24px; text-align:center; color:#3c4043; font-weight:600;">0</div>'
+                          + '</div>';
+                        container.appendChild(row);
+                    });
+                    // Hook change events
+                    container.querySelectorAll('.skill-slider').forEach(function(slider) {
+                        slider.addEventListener('input', function() {
+                            const valEl = this.parentElement.querySelector('.skill-value');
+                            if (valEl) valEl.textContent = this.value;
+                        });
+                    });
+                })
+                .withFailureHandler(function(err) {
+                    container.innerHTML = '<div style="color:#dc3545">Failed to load skill categories</div>';
+                })
+                .getSkillCategories();
+        }
+
         // Employee CRUD operations
         function addEmployee() {
             isEditing = false;
@@ -897,6 +939,25 @@
             } else if (previewContainer) {
                 previewContainer.style.display = 'none';
             }
+
+            // Load skills for this employee
+            google.script.run
+                .withSuccessHandler(function(res) {
+                    const skills = (res && res.success && res.skills) ? res.skills : {};
+                    const sliders = document.querySelectorAll('#skillsContainer .skill-slider');
+                    sliders.forEach(function(slider) {
+                        const key = slider.getAttribute('data-skill');
+                        const v = skills[key] != null ? parseFloat(skills[key]) : 0;
+                        const safe = isNaN(v) ? 0 : Math.max(0, Math.min(5, Math.round(v * 10) / 10));
+                        slider.value = safe;
+                        const valEl = slider.parentElement.querySelector('.skill-value');
+                        if (valEl) valEl.textContent = parseFloat(safe).toFixed(1);
+                    });
+                })
+                .withFailureHandler(function(err) {
+                    // keep defaults
+                })
+                .getEmployeeSkills(employee.empId);
             
             openEmployeeForm('Edit Employee: ' + employee.empId);
             setTimeout(() => document.getElementById('empId').focus(), 100);
@@ -1020,9 +1081,33 @@
             }
 
             function finalizeSave() {
+                // Collect skills
+                const skills = {};
+                document.querySelectorAll('#skillsContainer .skill-slider').forEach(function(slider) {
+                    const key = slider.getAttribute('data-skill');
+                    skills[key] = parseFloat(slider.value) || 0;
+                });
+                // Save employees first, then skills
                 filterEmployees();
-                saveEmployeesToSheet();
-                closeEmployeeForm();
+                google.script.run
+                    .withSuccessHandler(function() {
+                        google.script.run
+                            .withSuccessHandler(function(){
+                                closeEmployeeForm();
+                            })
+                            .withFailureHandler(function(){
+                                closeEmployeeForm();
+                            })
+                            .saveEmployeeSkills(empId, skills);
+                    })
+                    .withFailureHandler(function(){
+                        // still attempt skills
+                        google.script.run
+                            .withSuccessHandler(function(){ closeEmployeeForm(); })
+                            .withFailureHandler(function(){ closeEmployeeForm(); })
+                            .saveEmployeeSkills(empId, skills);
+                    })
+                    .saveAllEmployees(employees);
             }
         }
 
@@ -1283,6 +1368,8 @@
             const createdDate = employee.createdDate ? new Date(employee.createdDate).toLocaleDateString() : '';
             const lastModified = employee.lastModified ? new Date(employee.lastModified).toLocaleDateString() : '';
 
+            // Placeholder for skills; fetched async then injected
+            const skillsSectionId = 'skillsPreview_' + (employee.empId || 'emp');
             card.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     ${employee.photoUrl ? `<div style=\"display: flex; justify-content: center;\">
@@ -1306,10 +1393,44 @@
                     ${positionsHtml ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Positions:</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${positionsHtml}</div>` : ''}
                     ${employee.status ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Status:</span><span>${renderStatusBadge(employee.status)}</span></div>` : ''}
                     ${employee.note ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Notes:</span><span>${employee.note}</span></div>` : ''}
+                    <div id="${skillsSectionId}" style="border-top:1px solid #e9ecef; padding-top:10px;">
+                        <div style="color:#6c757d; font-weight:600; margin-bottom:6px;">Skills</div>
+                        <div style="color:#6c757d; font-size:12px;">Loading...</div>
+                    </div>
                     ${createdDate ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Created:</span><span>${createdDate}</span></div>` : ''}
                     ${lastModified ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Modified:</span><span>${lastModified}</span></div>` : ''}
                 </div>
             `;
+
+            // Fetch and render skills with star ratings and weighted average
+            google.script.run.withSuccessHandler(function(res){
+                const wrap = document.getElementById(skillsSectionId);
+                if (!wrap) return;
+                const skills = (res && res.success && res.skills) ? res.skills : {};
+                const overall = (res && res.overall) ? parseFloat(res.overall) : 0;
+                const weights = (res && res.weights) || {};
+                const cats = Object.keys(skills);
+                if (cats.length === 0) { wrap.innerHTML = '<div style="color:#6c757d">No skills set</div>'; return; }
+                function renderStars(val){
+                    const full = Math.floor(val);
+                    const half = (val - full) >= 0.5 ? 1 : 0;
+                    const empty = 5 - full - half;
+                    return '★'.repeat(full) + (half ? '☆' : '') + '✩'.repeat(Math.max(0, empty));
+                }
+                let html = '';
+                html += '<div style="margin-bottom:8px; font-weight:600;">Overall (weighted): ' + overall.toFixed(2) + ' ' + renderStars(Math.min(5, overall)) + '</div>';
+                cats.forEach(function(cat){
+                    const v = parseFloat(skills[cat]) || 0;
+                    const w = parseFloat(weights[cat]) || 1;
+                    html += '<div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">'
+                      + '<div style="min-width:200px;">' + cat + '</div>'
+                      + '<div>' + renderStars(v) + '</div>'
+                      + '<div style="width:40px; text-align:right; font-weight:600;">' + v.toFixed(1) + '</div>'
+                      + '<div style="color:#6c757d;">w:' + w + '</div>'
+                      + '</div>';
+                });
+                wrap.innerHTML = html;
+            }).getEmployeeSkills(employee.empId);
         }
 
         function selectRow(index) {
