@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bar Employee CRM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .crm-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+        }
+
+        .button-panel {
+            padding: 20px 30px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .btn-primary {
+            background-color: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+
+        .btn-success {
+            background-color: #34a853;
+            color: white;
+            border-color: #34a853;
+        }
+
+        .btn-danger {
+            background-color: #ea4335;
+            color: white;
+            border-color: #ea4335;
+        }
+
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+            border-color: #17a2b8;
+        }
+
+        .data-panel {
+            flex: 1;
+            padding: 30px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .search-section {
+            flex: 1;
+        }
+
+        .global-search {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .global-search:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 3px rgba(66,133,244,0.1);
+        }
+
+        .content-area {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .table-section {
+            flex: 2;
+            min-width: 0;
+        }
+
+        .table-container {
+            height: 500px;
+            overflow: auto;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            border-bottom: 1px solid #dadce0;
+            padding: 15px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f1f3f4;
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        .data-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .data-table tr.active {
+            background-color: #4285f4 !important;
+            color: white;
+        }
+
+        .positions-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .position-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #e8f0fe;
+            color: #4285f4;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            border: 1px solid #dadce0;
+            font-weight: 500;
+        }
+
+        .data-table tr.active .position-tag {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .preview-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .active-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 15px;
+            border: 1px solid;
+            font-weight: 500;
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+
+        .status-active .dot {
+            background-color: #34a853;
+        }
+
+        .status-inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+
+        .status-inactive .dot {
+            background-color: #ea4335;
+        }
+
+        /* Modal styles */
+        .form-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .form-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            width: 500px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            padding: 20px 25px;
+            position: relative;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-size: 22px;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .modal-close:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .form-content {
+            padding: 25px;
+            flex: 1 1 auto;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #3c4043;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 3px rgba(66,133,244,0.1);
+        }
+
+        /* New Position Toggle Buttons */
+        .position-toggles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .position-toggle {
+            position: relative;
+        }
+
+        .position-toggle input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .position-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .position-toggle-label:hover {
+            border-color: #4285f4;
+            background: #f8f9ff;
+        }
+
+        .position-toggle input[type="checkbox"]:checked + .position-toggle-label {
+            background: #4285f4;
+            color: white;
+            border-color: #4285f4;
+            box-shadow: 0 2px 8px rgba(66,133,244,0.3);
+        }
+
+        .position-icon {
+            font-size: 16px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .role-flags {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .role-flags label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .form-actions {
+            padding: 20px 25px;
+            background-color: #f8f9fa;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .status-message {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 2000;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .status-success {
+            background-color: #34a853;
+        }
+
+        .status-error {
+            background-color: #ea4335;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .data-panel {
+                padding: 15px;
+            }
+            
+            .button-panel {
+                padding: 15px;
+            }
+            
+            .header {
+                padding: 15px 20px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .form-modal {
+                width: 90%;
+                max-width: 400px;
+            }
+
+            .position-toggles {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .content-area {
+                flex-direction: column;
+            }
+            
+            .preview-panel {
+                min-width: unset;
+            }
+            
+            .active-card {
+                height: auto;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <div class="header">
+            <h1>🍺 Bar Employee CRM</h1>
+            <div class="header-info">
+                <div class="sync-status" id="syncStatus">
+                    <span class="sync-dot">🟢</span>
+                    <span>Connected</span>
+                </div>
+                <button class="btn btn-info btn-sm" onclick="openSheet()" title="Open Google Sheet">
+                    📊 View Sheet
+                </button>
+            </div>
+        </div>
+        
+        <div class="button-panel">
+            <button class="btn btn-success" onclick="addEmployee()">
+                ➕ Add New
+            </button>
+            <button class="btn btn-primary" onclick="editEmployee()">
+                ✏️ Edit
+            </button>
+            <button class="btn btn-danger" onclick="deleteEmployee()">
+                🗑️ Delete
+            </button>
+            <button class="btn" onclick="syncData()">
+                🔄 Sync
+            </button>
+        </div>
+
+        <div class="data-panel">
+            <div class="top-controls">
+                <div class="search-section">
+                    <input type="text" id="globalSearch" class="global-search" 
+                           placeholder="🔍 Search employees by name, position, email..." 
+                           onkeyup="filterEmployees()">
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <div class="table-section">
+                    <div class="table-container" id="tableContainer">
+                        <div id="loadingState" class="empty-state">
+                            <div class="empty-state-icon">⏳</div>
+                            <div>Loading employees...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="preview-panel">
+                    <div id="activeCard" class="active-card">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">👤</div>
+                            <div>Select an employee to view details</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusMessage" class="status-message"></div>
+
+    <!-- Add/Edit Employee Form Modal -->
+    <div id="employeeFormModal" class="form-overlay">
+        <div class="form-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="formTitle">Add Employee</h2>
+                <button class="modal-close" type="button" onclick="closeEmployeeForm()">&times;</button>
+            </div>
+            
+            <div class="form-content">
+                <form id="employeeForm">
+                    <div class="form-group">
+                        <label class="form-label">Employee ID <span style="color: #ea4335;">*</span></label>
+                        <input type="text" id="empId" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" id="firstName" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" id="lastName" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" id="phone" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="email" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Position(s)</label>
+                        <div class="position-toggles" id="positionToggles">
+                            <div class="position-toggle">
+                                <input type="checkbox" id="pos-bartender" value="Bartender">
+                                <label for="pos-bartender" class="position-toggle-label">
+                                    <span class="position-icon">🍸</span>
+                                    <span>Bartender</span>
+                                </label>
+                            </div>
+                            <div class="position-toggle">
+                                <input type="checkbox" id="pos-server" value="Server">
+                                <label for="pos-server" class="position-toggle-label">
+                                    <span class="position-icon">🍽️</span>
+                                    <span>Server</span>
+                                </label>
+                            </div>
+                            <div class="position-toggle">
+                                <input type="checkbox" id="pos-manager" value="Manager">
+                                <label for="pos-manager" class="position-toggle-label">
+                                    <span class="position-icon">👔</span>
+                                    <span>Manager</span>
+                                </label>
+                            </div>
+                            <div class="position-toggle">
+                                <input type="checkbox" id="pos-host" value="Host">
+                                <label for="pos-host" class="position-toggle-label">
+                                    <span class="position-icon">🎯</span>
+                                    <span>Host</span>
+                                </label>
+                            </div>
+                            <div class="position-toggle">
+                                <input type="checkbox" id="pos-kitchen" value="Kitchen Staff">
+                                <label for="pos-kitchen" class="position-toggle-label">
+                                    <span class="position-icon">👨‍🍳</span>
+                                    <span>Kitchen Staff</span>
+                                </label>
+                            </div>
+                            <div class="position-toggle">
+                                <input type="checkbox" id="pos-security" value="Security">
+                                <label for="pos-security" class="position-toggle-label">
+                                    <span class="position-icon">🛡️</span>
+                                    <span>Security</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Roles</label>
+                        <div class="role-flags">
+                            <label><input type="checkbox" id="flag-isMe"> 👑 This is me</label>
+                            <label><input type="checkbox" id="flag-asstManager"> 🎖️ Assistant Manager</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select id="status" class="form-control">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea id="note" class="form-control" rows="3" placeholder="Additional notes about this employee..."></textarea>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="closeEmployeeForm()">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveEmployee()">💾 Save Employee</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let employees = [];
+        let filteredEmployees = [];
+        let activeRowIndex = -1;
+        let isEditing = false;
+        let editingIndex = -1;
+        let meEmpId = '';
+        let editingOriginalEmpId = '';
+        let systemInfo = {};
+        let customPositions = [];
+
+        // Position icons mapping
+        const positionIcons = {
+            'Bartender': '🍸',
+            'Server': '🍽️',
+            'Manager': '👔',
+            'Host': '🎯',
+            'Kitchen Staff': '👨‍🍳',
+            'Security': '🛡️',
+            'Assistant Manager': '🎖️'
+        };
+
+        // Initialize when the page loads
+        window.onload = function() {
+            // Load system info and check connection
+            loadSystemInfo();
+            
+            // Load positions from server
+            loadPositionsFromServer();
+            
+            // Load employee data
+            loadEmployees();
+            
+            // Load "me" employee ID
+            loadMeEmployeeId();
+        };
+
+        // Load system information and test connection
+        function loadSystemInfo() {
+            updateSyncStatus('Connecting...', false);
+            
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        systemInfo = result.info;
+                        updateSyncStatus('Connected to Google Sheets', true);
+                        console.log('System info loaded:', systemInfo);
+                    } else {
+                        updateSyncStatus('Connection failed', false);
+                        console.error('Failed to load system info:', result.error);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    updateSyncStatus('Connection error', false);
+                    console.error('System info error:', error);
+                    showStatus('Connection to Google Sheets failed: ' + error.message, 'error');
+                })
+                .getSystemInfo();
+        }
+
+        // Load "me" employee ID
+        function loadMeEmployeeId() {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        meEmpId = result.empId || '';
+                        console.log('Me employee ID:', meEmpId);
+                        renderTable(); // Refresh to show crown icon
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.log('Could not load me employee ID:', error);
+                })
+                .getMeEmployeeId();
+        }
+
+        // Load employees from Google Sheets
+        function loadEmployees() {
+            showStatus('Loading employees from Google Sheets...', 'success');
+            document.body.classList.add('loading');
+            updateSyncStatus('Loading...', false);
+            
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.body.classList.remove('loading');
+                    
+                    if (result && result.success) {
+                        employees = result.employees || [];
+                        console.log('Loaded employees:', employees.length);
+                        filterEmployees();
+                        showStatus(`Loaded ${employees.length} employees from Google Sheets`, 'success');
+                        updateSyncStatus('Connected', true);
+                    } else {
+                        console.error('Failed to load employees:', result.error);
+                        showStatus('Error loading employees: ' + (result.error || 'Unknown error'), 'error');
+                        showEmptyState('Error loading data from Google Sheets');
+                        updateSyncStatus('Load failed', false);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.body.classList.remove('loading');
+                    console.error('Error loading employees:', error);
+                    showStatus('Failed to connect to Google Sheets: ' + error.message, 'error');
+                    showEmptyState('Failed to connect to Google Sheets');
+                    updateSyncStatus('Connection failed', false);
+                })
+                .getAllEmployees();
+        }
+
+        // Employee CRUD operations
+        function addEmployee() {
+            isEditing = false;
+            editingIndex = -1;
+            clearForm();
+            openEmployeeForm('Add New Employee');
+            setTimeout(() => document.getElementById('empId').focus(), 100);
+        }
+
+        function editEmployee() {
+            if (activeRowIndex === -1) {
+                showStatus('Please select an employee to edit', 'error');
+                return;
+            }
+            
+            const employee = filteredEmployees[activeRowIndex];
+            const originalIndex = employees.findIndex(emp => emp.empId === employee.empId);
+            
+            isEditing = true;
+            editingIndex = originalIndex;
+            
+            // Populate form
+            document.getElementById('empId').value = employee.empId;
+            document.getElementById('firstName').value = employee.firstName || '';
+            document.getElementById('lastName').value = employee.lastName || '';
+            document.getElementById('phone').value = employee.phone || '';
+            document.getElementById('email').value = employee.email || '';
+            document.getElementById('note').value = employee.note || '';
+            document.getElementById('status').value = employee.status || 'Active';
+            
+            // Set position checkboxes
+            const empPositions = employee.position ? employee.position.split(', ') : [];
+            document.querySelectorAll('#positionToggles input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = empPositions.includes(checkbox.value);
+            });
+
+            // Set role flags
+            const isAsst = empPositions.includes('Assistant Manager');
+            const isMeFlag = (employee.empId || '') === meEmpId;
+            
+            const flagMe = document.getElementById('flag-isMe');
+            const flagAsst = document.getElementById('flag-asstManager');
+            if (flagMe) flagMe.checked = !!isMeFlag;
+            if (flagAsst) flagAsst.checked = !!isAsst;
+            
+            openEmployeeForm('Edit Employee: ' + employee.empId);
+            setTimeout(() => document.getElementById('empId').focus(), 100);
+        }
+
+        function deleteEmployee() {
+            if (activeRowIndex === -1) {
+                showStatus('Please select an employee to delete', 'error');
+                return;
+            }
+            
+            const employee = filteredEmployees[activeRowIndex];
+            
+            if (confirm(`⚠️ Are you sure you want to permanently delete employee ${employee.empId}${employee.firstName ? ' - ' + employee.firstName + ' ' + employee.lastName : ''}?\n\nThis action cannot be undone.`)) {
+                const originalIndex = employees.findIndex(emp => emp.empId === employee.empId);
+                employees.splice(originalIndex, 1);
+                
+                showStatus(`Employee ${employee.empId} deleted`, 'success');
+                filterEmployees();
+                saveEmployeesToSheet();
+                
+                // Reset active row
+                activeRowIndex = -1;
+            }
+        }
+
+        function saveEmployee() {
+            const form = document.getElementById('employeeForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const empId = document.getElementById('empId').value.trim();
+            if (!empId) {
+                showStatus('Employee ID is required', 'error');
+                return;
+            }
+            
+            // Check for duplicate ID when adding or when editing and ID changed
+            if (!isEditing || (isEditing && employees[editingIndex].empId !== empId)) {
+                if (employees.some(emp => emp.empId === empId)) {
+                    showStatus('Employee ID already exists', 'error');
+                    return;
+                }
+            }
+            
+            // Get selected positions
+            const selectedPositions = [];
+            document.querySelectorAll('#positionToggles input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedPositions.push(checkbox.value);
+            });
+
+            // Apply role flags to positions list
+            const isAsst = document.getElementById('flag-asstManager')?.checked;
+            if (isAsst && !selectedPositions.includes('Assistant Manager')) {
+                selectedPositions.push('Assistant Manager');
+            }
+            
+            const now = new Date().toISOString();
+            const employee = {
+                empId: empId,
+                firstName: document.getElementById('firstName').value.trim(),
+                lastName: document.getElementById('lastName').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                position: selectedPositions.join(', '),
+                status: document.getElementById('status').value,
+                note: document.getElementById('note').value.trim(),
+                createdDate: isEditing ? (employees[editingIndex].createdDate || now) : now,
+                lastModified: now
+            };
+            
+            if (isEditing) {
+                employees[editingIndex] = employee;
+                showStatus('Employee updated successfully', 'success');
+            } else {
+                employees.push(employee);
+                showStatus('Employee added successfully', 'success');
+            }
+
+            // Handle "me" employee ID setting
+            const isMeFlag = document.getElementById('flag-isMe')?.checked;
+            if (isMeFlag) {
+                setMeEmployeeId(empId);
+            } else if (meEmpId === empId) {
+                // If unchecked and this was the "me" employee, clear it
+                clearMeEmployeeId();
+            }
+            
+            filterEmployees();
+            saveEmployeesToSheet();
+            closeEmployeeForm();
+        }
+
+        // Save employees to Google Sheets
+        function saveEmployeesToSheet() {
+            showStatus('Saving to Google Sheets...', 'success');
+            document.body.classList.add('loading');
+            updateSyncStatus('Saving...', true);
+            
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.body.classList.remove('loading');
+                    if (result && result.success) {
+                        showStatus('Data saved to Google Sheets successfully!', 'success');
+                        updateSyncStatus('Saved', true);
+                        console.log('Save result:', result.message);
+                    } else {
+                        showStatus('Error saving to Google Sheets: ' + (result.error || 'Unknown error'), 'error');
+                        updateSyncStatus('Save failed', false);
+                        console.error('Save failed:', result.error);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.body.classList.remove('loading');
+                    console.error('Error saving employees:', error);
+                    showStatus('Failed to save to Google Sheets: ' + error.message, 'error');
+                    updateSyncStatus('Save failed', false);
+                })
+                .saveAllEmployees(employees);
+        }
+
+        // Set "me" employee ID
+        function setMeEmployeeId(empId) {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        meEmpId = empId;
+                        renderTable(); // Refresh to show crown icon
+                        console.log('Me employee ID set to:', empId);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.log('Failed to set me employee ID:', error);
+                })
+                .setMeEmployeeId(empId);
+        }
+
+        // Clear "me" employee ID
+        function clearMeEmployeeId() {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        meEmpId = '';
+                        renderTable(); // Refresh to remove crown icon
+                        console.log('Me employee ID cleared');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.log('Failed to clear me employee ID:', error);
+                })
+                .clearMeEmployeeId();
+        }
+
+        function openEmployeeForm(title) {
+            document.getElementById('formTitle').textContent = title;
+            document.getElementById('employeeFormModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeEmployeeForm() {
+            document.getElementById('employeeFormModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            clearForm();
+            isEditing = false;
+            editingIndex = -1;
+        }
+
+        function clearForm() {
+            document.getElementById('employeeForm').reset();
+            document.querySelectorAll('#positionToggles input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            const flagMe = document.getElementById('flag-isMe');
+            const flagAsst = document.getElementById('flag-asstManager');
+            if (flagMe) flagMe.checked = false;
+            if (flagAsst) flagAsst.checked = false;
+            editingOriginalEmpId = '';
+        }
+
+        // Table management functions
+        function filterEmployees() {
+            const searchTerm = document.getElementById('globalSearch').value.toLowerCase();
+            
+            if (searchTerm) {
+                filteredEmployees = employees.filter(emp => {
+                    return Object.values(emp).some(value => 
+                        value && value.toString().toLowerCase().includes(searchTerm)
+                    );
+                });
+            } else {
+                filteredEmployees = [...employees];
+            }
+
+            if (activeRowIndex >= filteredEmployees.length) {
+                activeRowIndex = -1;
+            }
+            
+            renderTable();
+        }
+
+        function renderTable() {
+            const container = document.getElementById('tableContainer');
+            
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            
+            // Create header
+            const headerRow = document.createElement('tr');
+            const columns = [
+                'Emp ID',
+                'First Name',
+                'Last Name',
+                'Phone',
+                'Email',
+                'Position',
+                'Status',
+                'Notes'
+            ];
+            
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+            
+            table.appendChild(headerRow);
+            
+            if (filteredEmployees.length === 0) {
+                const emptyRow = document.createElement('tr');
+                const emptyCell = document.createElement('td');
+                emptyCell.colSpan = columns.length;
+                emptyCell.style.padding = '40px';
+                emptyCell.style.textAlign = 'center';
+                emptyCell.innerHTML = employees.length === 0
+                    ? '<div class="empty-state"><div class="empty-state-icon">👥</div><div>No employees found. Click "Add New" to get started!</div></div>'
+                    : '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>No employees match your search criteria.</div></div>';
+                emptyRow.appendChild(emptyCell);
+                table.appendChild(emptyRow);
+                
+                container.innerHTML = '';
+                container.appendChild(table);
+                renderActiveCard();
+                return;
+            }
+            
+            // Create data rows
+            filteredEmployees.forEach((employee, index) => {
+                const row = document.createElement('tr');
+                row.onclick = () => selectRow(index);
+                row.style.cursor = 'pointer';
+                if (index === activeRowIndex) {
+                    row.classList.add('active');
+                }
+                
+                // Employee ID
+                const empIdCell = document.createElement('td');
+                empIdCell.textContent = employee.empId;
+                
+                // Add crown for "me" employee
+                if ((employee.empId || '') === meEmpId) {
+                    const crown = document.createElement('span');
+                    crown.style.marginRight = '8px';
+                    crown.style.fontSize = '16px';
+                    crown.textContent = '👑';
+                    empIdCell.prepend(crown);
+                }
+                
+                row.appendChild(empIdCell);
+                
+                // First Name
+                const firstNameCell = document.createElement('td');
+                firstNameCell.textContent = employee.firstName || '';
+                row.appendChild(firstNameCell);
+                
+                // Last Name
+                const lastNameCell = document.createElement('td');
+                lastNameCell.textContent = employee.lastName || '';
+                row.appendChild(lastNameCell);
+                
+                // Phone
+                const phoneCell = document.createElement('td');
+                phoneCell.textContent = employee.phone || '';
+                row.appendChild(phoneCell);
+                
+                // Email
+                const emailCell = document.createElement('td');
+                emailCell.textContent = employee.email || '';
+                row.appendChild(emailCell);
+                
+                // Position
+                const positionCell = document.createElement('td');
+                if (employee.position) {
+                    const empPositions = employee.position.split(', ');
+                    const positionsDiv = document.createElement('div');
+                    positionsDiv.className = 'positions-display';
+                    empPositions.forEach(pos => {
+                        const tag = document.createElement('span');
+                        tag.className = 'position-tag';
+                        
+                        // Add icon to position tag
+                        const icon = positionIcons[pos] || '📋';
+                        tag.innerHTML = `<span class="position-icon">${icon}</span>${pos}`;
+                        
+                        positionsDiv.appendChild(tag);
+                    });
+                    positionCell.appendChild(positionsDiv);
+                }
+                row.appendChild(positionCell);
+                
+                // Status
+                const statusCell = document.createElement('td');
+                statusCell.innerHTML = renderStatusBadge(employee.status);
+                row.appendChild(statusCell);
+                
+                // Notes
+                const noteCell = document.createElement('td');
+                noteCell.textContent = employee.note || '';
+                noteCell.style.maxWidth = '200px';
+                noteCell.style.whiteSpace = 'nowrap';
+                noteCell.style.overflow = 'hidden';
+                noteCell.style.textOverflow = 'ellipsis';
+                if (employee.note) {
+                    noteCell.title = employee.note;
+                }
+                row.appendChild(noteCell);
+                
+                table.appendChild(row);
+            });
+            
+            container.innerHTML = '';
+            container.appendChild(table);
+            renderActiveCard();
+        }
+
+        function renderActiveCard() {
+            const card = document.getElementById('activeCard');
+            if (!card) return;
+
+            const employee = (activeRowIndex >= 0 && activeRowIndex < filteredEmployees.length)
+                ? filteredEmployees[activeRowIndex]
+                : null;
+
+            if (!employee) {
+                card.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👤</div>
+                        <div>Select an employee to view details</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const fullName = [employee.firstName || '', employee.lastName || ''].filter(Boolean).join(' ');
+            const positionsHtml = (employee.position || '')
+                .split(', ')
+                .filter(Boolean)
+                .map(pos => {
+                    const icon = positionIcons[pos] || '📋';
+                    return `<span class="position-tag"><span class="position-icon">${icon}</span>${pos}</span>`;
+                })
+                .join('');
+
+            const createdDate = employee.createdDate ? new Date(employee.createdDate).toLocaleDateString() : '';
+            const lastModified = employee.lastModified ? new Date(employee.lastModified).toLocaleDateString() : '';
+
+            card.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 15px;">
+                        ${(employee.empId || '') === meEmpId ? '👑 ' : ''}${fullName || '(No Name)'}
+                    </div>
+                    <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
+                        <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">ID:</span>
+                        <span>${employee.empId || ''}</span>
+                    </div>
+                    <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
+                        <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Email:</span>
+                        <span>${employee.email || ''}</span>
+                    </div>
+                    <div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;">
+                        <span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Phone:</span>
+                        <span>${employee.phone || ''}</span>
+                    </div>
+                    ${positionsHtml ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Positions:</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${positionsHtml}</div>` : ''}
+                    ${employee.status ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Status:</span><span>${renderStatusBadge(employee.status)}</span></div>` : ''}
+                    ${employee.note ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Notes:</span><span>${employee.note}</span></div>` : ''}
+                    ${createdDate ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Created:</span><span>${createdDate}</span></div>` : ''}
+                    ${lastModified ? `<div style="font-size: 14px; margin-bottom: 8px; display: flex; align-items: flex-start;"><span style="color: #6c757d; font-weight: 600; margin-right: 10px; min-width: 80px;">Modified:</span><span>${lastModified}</span></div>` : ''}
+                </div>
+            `;
+        }
+
+        function selectRow(index) {
+            activeRowIndex = index;
+            renderTable();
+        }
+
+        // Utility functions
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 4000);
+        }
+
+        function renderStatusBadge(status) {
+            const normalized = (status || 'Active').toLowerCase();
+            const isActive = normalized === 'active';
+            const cls = isActive ? 'status-active' : 'status-inactive';
+            const safe = isActive ? 'Active' : 'Inactive';
+            return `<span class="status-badge ${cls}"><span class="dot"></span>${safe}</span>`;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Don't trigger shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                if (e.key === 'Enter') {
+                    if (e.target.closest('#employeeFormModal')) {
+                        e.preventDefault();
+                        saveEmployee();
+                        return;
+                    }
+                }
+                return;
+            }
+            
+            if (e.altKey || e.ctrlKey || e.metaKey) return;
+            
+            switch(e.key.toLowerCase()) {
+                case 'a':
+                    e.preventDefault();
+                    addEmployee();
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    editEmployee();
+                    break;
+                case 'd':
+                    e.preventDefault();
+                    deleteEmployee();
+                    break;
+                case 'arrowup':
+                    e.preventDefault();
+                    if (activeRowIndex > 0) { 
+                        selectRow(activeRowIndex - 1); 
+                    }
+                    break;
+                case 'arrowdown':
+                    e.preventDefault();
+                    if (activeRowIndex < filteredEmployees.length - 1) { 
+                        selectRow(activeRowIndex + 1); 
+                    }
+                    break;
+                case 'escape':
+                    if (document.getElementById('employeeFormModal').style.display === 'block') {
+                        e.preventDefault();
+                        closeEmployeeForm();
+                    }
+                    break;
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('employeeFormModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEmployeeForm();
+            }
+        });
+
+        // Load positions from server and update form
+        function loadPositionsFromServer() {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success && result.positions) {
+                        customPositions = result.positions;
+                        updatePositionToggles();
+                        console.log('Loaded positions from server:', customPositions.length);
+                    } else {
+                        console.log('Using default positions');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.log('Failed to load positions from server:', error);
+                })
+                .getPositionsList();
+        }
+
+        // Update position toggles based on server data
+        function updatePositionToggles() {
+            const container = document.getElementById('positionToggles');
+            if (!container || !Array.isArray(customPositions) || customPositions.length === 0) {
+                return; // Keep default toggles if no custom positions
+            }
+            
+            container.innerHTML = '';
+            customPositions.forEach((pos, idx) => {
+                const positionName = typeof pos === 'string' ? pos : pos.name;
+                const positionIcon = (typeof pos === 'object' && pos.icon) ? pos.icon : positionIcons[positionName] || '📋';
+                const id = `pos-${idx}`;
+                
+                const toggleDiv = document.createElement('div');
+                toggleDiv.className = 'position-toggle';
+                toggleDiv.innerHTML = `
+                    <input type="checkbox" id="${id}" value="${positionName}">
+                    <label for="${id}" class="position-toggle-label">
+                        <span class="position-icon">${positionIcon}</span>
+                        <span>${positionName}</span>
+                    </label>
+                `;
+                container.appendChild(toggleDiv);
+            });
+        }
+
+        // Update sync status indicator
+        function updateSyncStatus(message, isConnected) {
+            const statusEl = document.getElementById('syncStatus');
+            if (statusEl) {
+                const dot = isConnected ? '🟢' : '🔴';
+                statusEl.innerHTML = `<span class="sync-dot">${dot}</span><span>${message}</span>`;
+            }
+        }
+
+        // Sync data from Google Sheet
+        function syncData() {
+            showStatus('Syncing from Google Sheets...', 'success');
+            document.body.classList.add('loading');
+            updateSyncStatus('Syncing...', false);
+            
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.body.classList.remove('loading');
+                    if (result && result.success) {
+                        employees = result.employees || [];
+                        filterEmployees();
+                        showStatus(result.message || 'Data synced successfully from Google Sheets', 'success');
+                        updateSyncStatus('Synced', true);
+                        console.log('Sync completed:', employees.length, 'employees');
+                    } else {
+                        showStatus('Sync failed: ' + (result.error || 'Unknown error'), 'error');
+                        updateSyncStatus('Sync failed', false);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.body.classList.remove('loading');
+                    showStatus('Sync failed: ' + error.message, 'error');
+                    updateSyncStatus('Sync failed', false);
+                })
+                .syncFromSheet();
+        }
+
+        // Open Google Sheet in new tab
+        function openSheet() {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success && result.url) {
+                        window.open(result.url, '_blank');
+                        showStatus('Opening Google Sheet...', 'success');
+                    } else {
+                        showStatus('Could not open sheet: ' + (result.error || 'Unknown error'), 'error');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    showStatus('Failed to get sheet URL: ' + error.message, 'error');
+                })
+                .getSheetUrl();
+        }
+
+        function showEmptyState(message) {
+            const container = document.getElementById('tableContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div>${message}</div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="loadEmployees()">🔄 Retry Connection</button>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
