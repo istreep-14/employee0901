@@ -562,6 +562,9 @@
             <button class="btn" onclick="syncData()">
                 🔄 Sync
             </button>
+            <button class="btn" onclick="ensureSetup()" title="Ensure all required sheets are created and aligned">
+                🛠️ Setup
+            </button>
         </div>
 
         <div class="data-panel">
@@ -1617,6 +1620,28 @@
                     updateSyncStatus('Sync failed', false);
                 })
                 .syncFromSheet();
+        }
+
+        // Ensure sheets/setup
+        function ensureSetup() {
+            document.body.classList.add('loading');
+            showStatus('Ensuring setup...', 'success');
+            google.script.run
+                .withSuccessHandler(function(res){
+                    document.body.classList.remove('loading');
+                    if (res && res.success) {
+                        showStatus('Setup complete', 'success');
+                        buildSkillsUI();
+                        loadEmployees();
+                    } else {
+                        showStatus('Setup failed: ' + (res && res.error ? res.error : 'Unknown error'), 'error');
+                    }
+                })
+                .withFailureHandler(function(error){
+                    document.body.classList.remove('loading');
+                    showStatus('Setup error: ' + error.message, 'error');
+                })
+                .ensureAllSheets();
         }
 
         // Open Google Sheet in new tab
