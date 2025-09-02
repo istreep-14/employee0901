@@ -1332,22 +1332,19 @@
         // Normalize various Google Drive links into a direct-displayable image URL
         function getDisplayPhotoUrl(url) {
             if (!url) return '';
-            const raw = (url || '').trim();
+            var raw = (url || '').trim();
             try {
-                // file/d/<id>/view or /preview -> extract id
-                const fileMatch = raw.match(/\/file\/d\/([^/]+)\//);
+                var fileMatch = raw.match(/\/file\/d\/([^/]+)\//);
                 if (fileMatch && fileMatch[1]) {
-                    return `https://drive.google.com/uc?id=${fileMatch[1]}&export=view`;
+                    return 'https://drive.google.com/uc?id=' + fileMatch[1] + '&export=view';
                 }
-                // open?id=<id>
-                const openMatch = raw.match(/[?&]id=([^&]+)/);
-                if (raw.includes('drive.google.com') && openMatch && openMatch[1] && !raw.includes('/uc?')) {
-                    return `https://drive.google.com/uc?id=${openMatch[1]}&export=view`;
+                var openMatch = raw.match(/[?&]id=([^&]+)/);
+                if (raw.indexOf('drive.google.com') !== -1 && openMatch && openMatch[1] && raw.indexOf('/uc?') === -1) {
+                    return 'https://drive.google.com/uc?id=' + openMatch[1] + '&export=view';
                 }
-                // uc?id=... ensure export=view
-                if (raw.includes('/uc?') && !/([?&])export=/.test(raw)) {
-                    const sep = raw.includes('?') ? '&' : '?';
-                    return `${raw}${sep}export=view`;
+                if (raw.indexOf('/uc?') !== -1 && !/([?&])export=/.test(raw)) {
+                    var sep = raw.indexOf('?') !== -1 ? '&' : '?';
+                    return raw + sep + 'export=view';
                 }
                 return raw;
             } catch (e) {
