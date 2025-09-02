@@ -892,7 +892,7 @@
             const preview = document.getElementById('photoPreview');
             const previewContainer = document.getElementById('photoPreviewContainer');
             if (preview && employee.photoUrl) {
-                preview.src = employee.photoUrl;
+                preview.src = getDisplayPhotoUrl(employee.photoUrl);
                 if (previewContainer) previewContainer.style.display = 'block';
             } else if (previewContainer) {
                 previewContainer.style.display = 'none';
@@ -1286,7 +1286,7 @@
             card.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     ${employee.photoUrl ? `<div style="display: flex; justify-content: center;">
-                        <img src="${employee.photoUrl}" alt="Employee photo" style="width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #e0e0e0;" />
+                        <img src="${getDisplayPhotoUrl(employee.photoUrl)}" alt="Employee photo" style="width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #e0e0e0;" />
                     </div>` : ''}
                     <div style="font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 15px;">
                         ${(employee.empId || '') === meEmpId ? '👑 ' : ''}${fullName || '(No Name)'}
@@ -1327,6 +1327,32 @@
             setTimeout(() => {
                 statusEl.style.display = 'none';
             }, 4000);
+        }
+
+        // Normalize various Google Drive links into a direct-displayable image URL
+        function getDisplayPhotoUrl(url) {
+            if (!url) return '';
+            const raw = (url || '').trim();
+            try {
+                // file/d/<id>/view or /preview -> extract id
+                const fileMatch = raw.match(/\/file\/d\/([^/]+)\//);
+                if (fileMatch && fileMatch[1]) {
+                    return `https://drive.google.com/uc?id=${fileMatch[1]}&export=view`;
+                }
+                // open?id=<id>
+                const openMatch = raw.match(/[?&]id=([^&]+)/);
+                if (raw.includes('drive.google.com') && openMatch && openMatch[1] && !raw.includes('/uc?')) {
+                    return `https://drive.google.com/uc?id=${openMatch[1]}&export=view`;
+                }
+                // uc?id=... ensure export=view
+                if (raw.includes('/uc?') && !/([?&])export=/.test(raw)) {
+                    const sep = raw.includes('?') ? '&' : '?';
+                    return `${raw}${sep}export=view`;
+                }
+                return raw;
+            } catch (e) {
+                return raw;
+            }
         }
 
         function renderStatusBadge(status) {
