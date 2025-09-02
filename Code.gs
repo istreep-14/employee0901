@@ -612,6 +612,33 @@ function getSheetUrl() {
 }
 
 /**
+ * Ensure all required sheets and headers are created and aligned
+ */
+function ensureAllSheets() {
+  try {
+    // Ensure main CRM sheet exists and headers are valid/migrated
+    const crmSheet = getCRMSheet();
+    // Re-apply boolean checkbox validations defensively
+    try {
+      const lastRow = Math.max(2, crmSheet.getLastRow());
+      const boolRange = crmSheet.getRange(DATA_START_ROW, 12, Math.max(1000, lastRow - 1), 3);
+      boolRange.insertCheckboxes();
+    } catch (e) { /* ignore */ }
+
+    // Ensure positions config
+    getPositionsSheet();
+
+    // Ensure skills config and skills data sheets
+    getSkillsConfigSheet();
+    getSkillsSheet();
+
+    return { success: true, message: 'All sheets ensured and aligned.' };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
  * Get all employees from the sheet with enhanced error handling
  */
 function getAllEmployees() {
