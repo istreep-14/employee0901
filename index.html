@@ -1415,8 +1415,7 @@
             const createdDate = employee.createdDate ? new Date(employee.createdDate).toLocaleDateString() : '';
             const lastModified = employee.lastModified ? new Date(employee.lastModified).toLocaleDateString() : '';
 
-            // Render skills into separate card; fetched async
-            const skillsSectionId = 'skillsPreview_' + (employee.empId || 'emp');
+            // Render skills inline in player grid
             card.innerHTML = `
                 <div class="player-card-grid">
                     <div>
