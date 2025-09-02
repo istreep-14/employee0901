@@ -951,6 +951,11 @@
             });
 
             // Apply role flags to positions list (Assistant Manager flag removed; handled via Position)
+
+            // Compute boolean flags for sheet columns
+            const isManagerBool = selectedPositions.includes('Manager');
+            const isAsstBool = selectedPositions.includes('Assistant Manager');
+            const isMeFlag = document.getElementById('flag-isMe')?.checked;
             
             const now = new Date().toISOString();
             const employee = {
@@ -963,6 +968,9 @@
                 status: document.getElementById('status').value,
                 note: document.getElementById('note').value.trim(),
                 photoUrl: employees[editingIndex]?.photoUrl || '',
+                isManager: isManagerBool,
+                isAssistantManager: isAsstBool,
+                isMe: !!isMeFlag,
                 createdDate: isEditing ? (employees[editingIndex].createdDate || now) : now,
                 lastModified: now
             };
@@ -976,7 +984,7 @@
             }
 
             // Handle "me" employee ID setting
-            const isMeFlag = document.getElementById('flag-isMe')?.checked;
+            // Persist user preference for "me" flag
             if (isMeFlag) {
                 setMeEmployeeId(empId);
             } else if (meEmpId === empId) {
