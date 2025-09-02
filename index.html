@@ -1285,6 +1285,9 @@
 
             card.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 20px;">
+                    ${employee.photoUrl ? `<div style="display: flex; justify-content: center;">
+                        <img src="${employee.photoUrl}" alt="Employee photo" style="width: 140px; height: 140px; object-fit: cover; border-radius: 10px; border: 1px solid #e0e0e0;" />
+                    </div>` : ''}
                     <div style="font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 15px;">
                         ${(employee.empId || '') === meEmpId ? '👑 ' : ''}${fullName || '(No Name)'}
                     </div>
