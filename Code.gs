@@ -50,8 +50,19 @@ function getSkillsSheet() {
   if (!sheet) {
     sheet = ss.insertSheet(SKILLS_SHEET_NAME);
   }
-  // Ensure headers exist: Emp Id + categories from config
-  const categories = (getSkillCategories().categories) || DEFAULT_SKILL_CONFIG.map(c => c.name);
+  // Ensure headers exist: Emp Id + categories from config sheet (avoid recursion)
+  let categories = [];
+  try {
+    const cfg = getSkillsConfigSheet();
+    const lastRow = cfg.getLastRow();
+    if (lastRow >= 2) {
+      const vals = cfg.getRange(2, 1, lastRow - 1, 1).getValues();
+      vals.forEach(r => { const name = (r[0] || '').toString().trim(); if (name) categories.push(name); });
+    }
+  } catch (e) {}
+  if (categories.length === 0) {
+    categories = DEFAULT_SKILL_CONFIG.map(c => c.name);
+  }
   const expectedHeaders = ['Emp Id'].concat(categories);
   const lastCol = Math.max(sheet.getLastColumn(), expectedHeaders.length);
   let currentHeaders = [];
