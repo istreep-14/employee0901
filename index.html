@@ -851,14 +851,13 @@
             document.getElementById('status').value = employee.status || 'Active';
             
             // Set position checkboxes
-            let positions = employee.position ? employee.position.split(', ') : [];
+            const empPositions = employee.position ? employee.position.split(', ') : [];
             document.querySelectorAll('#positionToggles input[type="checkbox"]').forEach(checkbox => {
-                checkbox.checked = positions.includes(checkbox.value);
+                checkbox.checked = empPositions.includes(checkbox.value);
             });
 
             // Set role flags
-            const positions = employee.position ? employee.position.split(', ') : [];
-            const isAsst = positions.includes('Assistant Manager');
+            const isAsst = empPositions.includes('Assistant Manager');
             const isMeFlag = (employee.empId || '') === meEmpId;
             
             const flagMe = document.getElementById('flag-isMe');
@@ -920,9 +919,11 @@
 
             // Apply role flags to positions list
             const isAsst = document.getElementById('flag-asstManager')?.checked;
-            if (isAsst && !selectedPositions.includes('Assistant Manager')) selectedPositions.push('Assistant Manager');
+            if (isAsst && !selectedPositions.includes('Assistant Manager')) {
+                selectedPositions.push('Assistant Manager');
+            }
             
-            const now = new Date();
+            const now = new Date().toISOString();
             const employee = {
                 empId: empId,
                 firstName: document.getElementById('firstName').value.trim(),
@@ -943,6 +944,20 @@
                 employees.push(employee);
                 showStatus('Employee added successfully', 'success');
             }
+
+            // Handle "me" employee ID setting
+            const isMeFlag = document.getElementById('flag-isMe')?.checked;
+            if (isMeFlag) {
+                setMeEmployeeId(empId);
+            } else if (meEmpId === empId) {
+                // If unchecked and this was the "me" employee, clear it
+                clearMeEmployeeId();
+            }
+            
+            filterEmployees();
+            saveEmployeesToSheet();
+            closeEmployeeForm();
+        }
 
         // Save employees to Google Sheets
         function saveEmployeesToSheet() {
@@ -970,6 +985,38 @@
                     updateSyncStatus('Save failed', false);
                 })
                 .saveAllEmployees(employees);
+        }
+
+        // Set "me" employee ID
+        function setMeEmployeeId(empId) {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        meEmpId = empId;
+                        renderTable(); // Refresh to show crown icon
+                        console.log('Me employee ID set to:', empId);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.log('Failed to set me employee ID:', error);
+                })
+                .setMeEmployeeId(empId);
+        }
+
+        // Clear "me" employee ID
+        function clearMeEmployeeId() {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        meEmpId = '';
+                        renderTable(); // Refresh to remove crown icon
+                        console.log('Me employee ID cleared');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.log('Failed to clear me employee ID:', error);
+                })
+                .clearMeEmployeeId();
         }
 
         function openEmployeeForm(title) {
@@ -1111,10 +1158,10 @@
                 // Position
                 const positionCell = document.createElement('td');
                 if (employee.position) {
-                    const positions = employee.position.split(', ');
+                    const empPositions = employee.position.split(', ');
                     const positionsDiv = document.createElement('div');
                     positionsDiv.className = 'positions-display';
-                    positions.forEach(pos => {
+                    empPositions.forEach(pos => {
                         const tag = document.createElement('span');
                         tag.className = 'position-tag';
                         
